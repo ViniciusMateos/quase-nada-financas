@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: qnf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qnf_user
+      POSTGRES_PASSWORD: qnf_pass
+      POSTGRES_DB: qnf_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - qnf_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qnf_user -d qnf_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: qnf-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - qnf_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qnf-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://qnf_user:qnf_pass@postgres:5432/qnf_db?schema=public
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qnf-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://qnf_user:qnf_pass@postgres:5432/qnf_db?schema=public
+      REDIS_URL: redis://redis:6379
+    command: ["node", "dist/workers/pluggy-sync.worker.js"]
+
+volumes:
+  qnf_pgdata:
+  qnf_redisdata:

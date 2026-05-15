@@ -1,0 +1,50 @@
+export type User = { id: string; name?: string; email: string; biometricsEnabled?: boolean };
+export type LoginRequest = { email: string; password: string };
+export type RegisterRequest = { email: string; password: string };
+export type LoginResponse = { accessToken: string; refreshToken: string; user: User };
+export type RegisterResponse = LoginResponse;
+export type Account = {
+  id: string;
+  bankName: string;
+  type: string;
+  balance: number;
+  currency: 'BRL';
+  lastSyncedAt: string | null;
+};
+export type Transaction = {
+  id: string;
+  accountId: string;
+  accountName: string | null;
+  date: string;
+  description: string;
+  amount: number;
+  currency: 'BRL';
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  pending: boolean;
+};
+export type Category = { id: string; name: string; icon: string | null; color: string | null };
+export type Dashboard = {
+  month: string;
+  totalBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  topCategories: Array<{ categoryId: string; categoryName: string; categoryIcon: string | null; total: number; percentage: number }>;
+  recentTransactions: Transaction[];
+};
+export type PaginatedTransactions = { items: Transaction[]; nextCursor: string | null };
+export type BinanceAsset = { symbol: string; name: string; quantity: number; valueBRL: number; change24h: number };
+export type BinanceWallet = { connected: boolean; totalBRL: number; assets: BinanceAsset[] };
+export type Quote = { symbol: string; priceBRL: number; updatedAt: string };
+export type Order = {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  amountBRL: number;
+  executedQuantity: number | null;
+  executedPriceBRL: number | null;
+  status: 'pending' | 'filled' | 'failed';
+  createdAt: string;
+  errorMessage: string | null;
+};

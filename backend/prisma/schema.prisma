@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  passwordHash     String
+  createdAt        DateTime           @default(now())
+  sessions         Session[]
+  connectedAccounts ConnectedAccount[]
+  categories       Category[]
+  binanceAccount   BinanceAccount?
+  investmentOrders InvestmentOrder[]
+  categoryRules    CategoryRule[]
+}
+
+model Session {
+  id               String   @id @default(uuid())
+  userId           String
+  refreshTokenHash String
+  expiresAt        DateTime
+  deviceInfo       String?
+  usedAt           DateTime?
+  revokedAt        DateTime?
+  replacedById     String?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ConnectedAccount {
+  id               String        @id @default(uuid())
+  userId           String
+  pluggyItemId     String        @unique
+  bankName         String
+  consentExpiresAt DateTime?
+  status           String        @default("ACTIVE")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccounts     BankAccount[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model BankAccount {
+  id                 String           @id @default(uuid())
+  connectedAccountId String
+  externalId         String
+  type               String
+  balance            Float
+  currency           String           @default("BRL")
+  lastSyncAt         DateTime?
+  connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+
+  @@unique([connectedAccountId, externalId])
+}
+
+model Transaction {
+  id                 String      @id @default(uuid())
+  bankAccountId      String
+  externalId         String
+  amount             Float
+  currency           String      @default("BRL")
+  description        String
+  alias              String?
+  categoryId         String?
+  merchantName       String?
+  merchantMcc        String?
+  paymentMethod      String?
+  occurredAt         DateTime
+  installmentCurrent Int?
+  installmentTotal   Int?
+  rawData            Json?
+  bankAccount        BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  category           Category?   @relation(fields: [categoryId], references: [id])
+  createdAt          DateTime    @default(now())
+
+  @@unique([bankAccountId, externalId])
+  @@index([bankAccountId, occurredAt])
+  @@index([categoryId])
+}
+
+model Category {
+  id           String         @id @default(uuid())
+  userId       String?
+  name         String
+  icon         String
+  color        String
+  isDefault    Boolean        @default(false)
+  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  rules        CategoryRule[]
+
+  @@index([userId])
+}
+
+model CategoryRule {
+  id                  String   @id @default(uuid())
+  userId              String
+  merchantNamePattern String?
+  mcc                 String?
+  categoryId          String
+  priority            Int      @default(0)
+  category            Category @relation(fields: [categoryId], references: [id])
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+
+  @@index([userId])
+}
+
+model BinanceAccount {
+  id           String            @id @default(uuid())
+  userId       String            @unique
+  apiKeyEnc    String
+  apiSecretEnc String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       InvestmentOrder[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model InvestmentOrder {
+  id               String         @id @default(uuid())
+  userId           String
+  binanceAccountId String
+  asset            String
+  amountBrl        Float
+  amountAsset      Float?
+  orderType        String         @default("MARKET")
+  triggerType      String         @default("MANUAL")
+  status           String         @default("PENDING")
+  executedAt       DateTime?
+  errorMessage     String?
+  binanceOrderId   String?
+  responseData     Json?
+  user             User           @relation(fields: [userId], references: [id])
+  binanceAccount   BinanceAccount @relation(fields: [binanceAccountId], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@index([userId, createdAt])
+}

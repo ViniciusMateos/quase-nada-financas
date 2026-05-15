@@ -1,0 +1,53 @@
+{
+  "name": "quase-nada-financas-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "start:dev-client": "expo start --dev-client",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "build:development:ios": "eas build --profile development --platform ios",
+    "build:development:android": "eas build --profile development --platform android",
+    "build:preview:ios": "eas build --profile preview --platform ios",
+    "build:preview:android": "eas build --profile preview --platform android",
+    "start:dev:tunnel": "powershell -ExecutionPolicy Bypass -File ./scripts/start-dev-tunnel-local-api.ps1",
+    "start:dev-client:tunnel": "expo start --dev-client --tunnel",
+    "build:ios:dev": "eas build --profile development --platform ios",
+    "build:ios:preview": "eas build --profile preview --platform ios"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-navigation/bottom-tabs": "^7.0.0",
+    "@react-navigation/native": "^7.0.0",
+    "@react-navigation/native-stack": "^7.0.0",
+    "axios": "^1.7.9",
+    "date-fns": "^4.1.0",
+    "expo": "~52.0.0",
+    "expo-asset": "^55.0.17",
+    "expo-constants": "~17.0.3",
+    "expo-dev-client": "~5.0.0",
+    "expo-local-authentication": "~15.0.2",
+    "expo-secure-store": "~14.0.1",
+    "expo-status-bar": "~2.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.0",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-reanimated": "~3.16.1",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-webview": "13.12.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~18.3.12",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "eas-cli": "^13.3.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.3.3"
+  }
+}
