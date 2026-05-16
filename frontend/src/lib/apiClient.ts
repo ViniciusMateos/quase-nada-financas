@@ -3,6 +3,7 @@ import { env } from '@/config/env';
 import { authEvents } from '@/lib/authEvents';
 import { normalizeError } from '@/lib/errorMap';
 import { tokenStorage } from '@/lib/tokenStorage';
+import { debugLog } from '@/lib/debugLog';
 
 type QueuedRequest = {
   resolve: (token: string) => void;
@@ -23,7 +24,7 @@ function flushQueue(error: unknown, token: string | null) {
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': '1' }
 });
 
 apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
@@ -69,6 +70,13 @@ apiClient.interceptors.response.use(
       }
     }
 
+    debugLog.push({
+      method: error.config?.method?.toUpperCase() ?? '?',
+      url: error.config?.url ?? '?',
+      status: error.response?.status ?? null,
+      body: error.response?.data ?? null,
+      message: error.message,
+    });
     throw normalizeError(error);
   }
 );

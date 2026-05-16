@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { theme } from '@/theme/theme';
+import { DebugOverlay } from '@/ui/DebugOverlay';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <RootNavigator />
         </Suspense>
       </AuthProvider>
+      <DebugOverlay />
     </SafeAreaProvider>
   );
 }

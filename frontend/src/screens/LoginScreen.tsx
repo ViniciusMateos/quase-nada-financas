@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { normalizeError } from '@/lib/errorMap';
 import { theme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { FormError } from '@/ui/FormError';
 import { TextField } from '@/ui/TextField';
 
 type AuthMode = 'login' | 'register';
@@ -77,7 +78,7 @@ export default function LoginScreen() {
         {mode === 'register' ? (
           <TextField label="Confirmar senha" value={confirmPassword} onChangeText={setConfirmPassword} secure error={errors.confirmPassword} />
         ) : null}
-        {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
+        {errors.form ? <FormError message={errors.form} /> : null}
         <Button label={copy.button} onPress={submit} loading={loading} disabled={disabled} />
         <Pressable onPress={toggleMode} style={styles.toggle} disabled={loading}>
           <Text style={styles.toggleText}>{copy.toggleText} <Text style={styles.toggleAction}>{copy.toggleAction}</Text></Text>
@@ -94,7 +95,6 @@ const styles = StyleSheet.create({
   title: { marginTop: 20, fontSize: 28, fontWeight: '800', color: theme.colors.brandTextPrimary, textAlign: 'center' },
   subtitle: { marginTop: 8, color: theme.colors.brandTextSecondary, textAlign: 'center', fontSize: 15 },
   form: { marginTop: 40, gap: 16 },
-  formError: { color: theme.colors.brandTextError, fontWeight: '700', textAlign: 'center' },
   toggle: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   toggleText: { color: theme.colors.brandTextSecondary, fontWeight: '600' },
   toggleAction: { color: theme.colors.brandPrimaryDark, fontWeight: '800' }

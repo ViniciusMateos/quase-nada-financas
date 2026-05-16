@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '@/theme/theme';
+import { debugLog } from '@/lib/debugLog';
 
 type ToastKind = 'success' | 'error' | 'info';
 type Toast = { id: number; message: string; kind: ToastKind };
@@ -33,6 +34,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <Pressable key={toast.id} onPress={() => hide(toast.id)} style={[styles.toast, styles[toast.kind]]}>
             <Text style={styles.text}>{toast.message}</Text>
+            {toast.kind === 'error' && (
+              <Pressable onPress={() => debugLog.openModal()} hitSlop={8}>
+                <Text style={styles.verLogs}>VER LOGS</Text>
+              </Pressable>
+            )}
           </Pressable>
         ))}
       </View>
@@ -52,5 +58,6 @@ const styles = StyleSheet.create({
   success: { backgroundColor: theme.colors.brandSuccess },
   error: { backgroundColor: theme.colors.brandError },
   info: { backgroundColor: theme.colors.brandInfo },
-  text: { color: '#FFFFFF', fontWeight: '700' }
+  text: { color: '#FFFFFF', fontWeight: '700' },
+  verLogs: { color: '#FFFFFF', fontWeight: '900', fontSize: 11, marginTop: 6, textDecorationLine: 'underline', opacity: 0.9 },
 });
