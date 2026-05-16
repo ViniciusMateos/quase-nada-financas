@@ -32,7 +32,7 @@ export function RootNavigator() {
           ) : user ? (
             <>
               <Stack.Screen name="AppTabs" component={AppTabs} />
-              <Stack.Screen name="ConnectBank" component={ConnectBankScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="ConnectBank" component={ConnectBankScreen} options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
               <Stack.Screen name="EditCategory" component={EditCategorySheet} options={{ presentation: 'transparentModal' }} />
               <Stack.Screen name="ConnectBinance" component={ConnectBinanceScreen} options={{ presentation: 'modal' }} />

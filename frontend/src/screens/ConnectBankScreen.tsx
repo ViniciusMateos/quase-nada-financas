@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { Alert, View } from 'react-native';
+import { PluggyConnect } from 'react-native-pluggy-connect';
 import { useNavigation } from '@react-navigation/native';
 import { normalizeError } from '@/lib/errorMap';
 import { pluggyService } from '@/services/pluggy.service';
-import { theme } from '@/theme/theme';
-import { Button } from '@/ui/Button';
 import { ErrorState, LoadingOverlay } from '@/ui/States';
 
 export default function ConnectBankScreen() {
@@ -17,19 +15,22 @@ export default function ConnectBankScreen() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setToken((await pluggyService.connectToken()).connectToken); }
-    catch (err) { setError(normalizeError(err).message); }
-    finally { setLoading(false); }
+    try {
+      const res = await pluggyService.connectToken();
+      setToken(res.connectToken);
+    } catch (err) {
+      setError(normalizeError(err).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleMessage(raw: string) {
+  async function handleSuccess({ item }: { item: { id: string } }) {
     try {
-      const data = JSON.parse(raw);
-      if (data.event !== 'ITEM_CONNECTED' && data.type !== 'ITEM_CONNECTED') return;
       setConnecting(true);
-      await pluggyService.callback(data.itemId);
+      await pluggyService.callback(item.id);
       navigation.goBack();
     } catch (err) {
       Alert.alert('Erro', normalizeError(err).message);
@@ -39,27 +40,23 @@ export default function ConnectBankScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Conectar Conta Bancaria</Text>
-        <Button label="Fechar" variant="secondary" onPress={() => navigation.goBack()} style={{ width: 100 }} />
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{ flex: 1 }}>
+        {loading && <LoadingOverlay message="Preparando conexão..." />}
+        {error && <ErrorState subtitle={error} onRetry={load} />}
+        {!loading && !error && token && (
+          <PluggyConnect
+            connectToken={token}
+            includeSandbox={true}
+            onSuccess={handleSuccess}
+            onError={(err: any) => {
+              Alert.alert('Erro', err?.message ?? 'Falha na conexão');
+            }}
+            onClose={() => navigation.goBack()}
+          />
+        )}
+        {connecting && <LoadingOverlay message="Conectando conta..." />}
       </View>
-      {loading ? <LoadingOverlay message="Preparando conexao..." /> : null}
-      {error ? <ErrorState subtitle={error} onRetry={load} /> : null}
-      {token ? (
-        <WebView
-          source={{ uri: `https://connect.pluggy.ai?connectToken=${encodeURIComponent(token)}` }}
-          onMessage={(event) => handleMessage(event.nativeEvent.data)}
-          startInLoadingState
-        />
-      ) : null}
-      {connecting ? <LoadingOverlay message="Conectando conta..." /> : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.brandSurface },
-  header: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '800', color: theme.colors.brandTextPrimary }
-});
