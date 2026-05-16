@@ -6,6 +6,7 @@ import { logger } from "./lib/logger.js";
 import { AppError } from "./lib/errors.js";
 import { authRoutes } from "./features/auth/auth.routes.js";
 import { accountsRoutes, pluggyRoutes } from "./features/accounts/accounts.routes.js"; // RC-03
+import { pluggyWebhookRoutes } from "./features/accounts/pluggy-webhook.routes.js";
 import { transactionsRoutes } from "./features/transactions/transactions.routes.js";
 import { categoriesRoutes } from "./features/categories/categories.routes.js";
 import { dashboardRoutes } from "./features/dashboard/dashboard.routes.js";
@@ -34,6 +35,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     async (api) => {
       await api.register(authRoutes, { prefix: "/auth" });
       await api.register(accountsRoutes, { prefix: "/accounts" });
+      await api.register(pluggyWebhookRoutes, { prefix: "/pluggy/webhook" }); // público, sem auth
       await api.register(pluggyRoutes, { prefix: "/pluggy" }); // RC-03: registrado explicitamente
       await api.register(transactionsRoutes, { prefix: "/transactions" });
       await api.register(categoriesRoutes, { prefix: "/categories" });

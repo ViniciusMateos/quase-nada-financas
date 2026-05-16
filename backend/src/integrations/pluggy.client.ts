@@ -1,5 +1,6 @@
 import { request } from "undici";
 import { env } from "../config/env.js";
+
 import { Errors } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 
@@ -64,7 +65,7 @@ export class PluggyClient {
     const res = await request(`${env.PLUGGY_API_URL}/connect_token`, {
       method: "POST",
       headers: { "content-type": "application/json", "X-API-KEY": apiKey },
-      body: JSON.stringify({ options: { clientUserId: userId } }),
+      body: JSON.stringify({ options: { clientUserId: userId, sandbox: env.NODE_ENV !== 'production' } }),
     });
     if (res.statusCode >= 400) {
       throw Errors.ExternalService(`Pluggy connect_token failed (${res.statusCode})`);
