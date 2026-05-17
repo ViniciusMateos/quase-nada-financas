@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Aula: Deploy do Quase Nada Finanças no Oracle Cloud</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+  @page:first { margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1f2933;
+    font-size: 11.5pt;
+    line-height: 1.55;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Capa */
+  .cover {
+    width: 210mm; height: 297mm;
+    box-sizing: border-box;
+    padding: 60mm 22mm 22mm 22mm;
+    background: linear-gradient(160deg, #14532d 0%, #166534 35%, #15803d 70%, #22c55e 100%);
+    color: #fff;
+    page-break-after: always;
+    position: relative;
+  }
+  .cover .tag { font-size: 11pt; letter-spacing: 4pt; text-transform: uppercase; opacity: .85; }
+  .cover h1 { font-size: 36pt; line-height: 1.05; margin: 14mm 0 8mm 0; font-weight: 800; }
+  .cover h2 { font-size: 16pt; font-weight: 500; opacity: .95; margin: 0 0 28mm 0; }
+  .cover .meta { position: absolute; bottom: 22mm; left: 22mm; right: 22mm; font-size: 10pt; opacity: .9; }
+  .cover .meta div { margin-bottom: 3mm; }
+
+  /* Cabeçalho/rodapé das páginas internas */
+  h1, h2, h3, h4 { color: #0f172a; line-height: 1.25; }
+  h1.modulo {
+    font-size: 22pt; margin: 0 0 6mm 0;
+    border-bottom: 3px solid #22c55e; padding-bottom: 4mm;
+    page-break-before: always;
+  }
+  h1.modulo .num {
+    display: inline-block; background: #14532d; color: #fff;
+    padding: 2mm 4mm; border-radius: 4px; font-size: 13pt; margin-right: 4mm;
+    vertical-align: middle;
+  }
+  h2 { font-size: 15pt; margin-top: 10mm; }
+  h3 { font-size: 12.5pt; margin-top: 7mm; color: #166534; }
+  h4 { font-size: 11.5pt; margin-top: 5mm; color: #334155; }
+  p { margin: 0 0 3mm 0; text-align: justify; }
+  ul, ol { margin: 0 0 4mm 0; padding-left: 6mm; }
+  li { margin-bottom: 1.5mm; }
+
+  code, pre, kbd, samp {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+    font-size: 9.5pt;
+  }
+  code { background: #f1f5f9; padding: 0.5pt 3pt; border-radius: 3px; color: #0f172a; }
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    padding: 4mm 5mm;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 3mm 0 5mm 0;
+    line-height: 1.45;
+    page-break-inside: avoid;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  pre .c { color: #94a3b8; font-style: italic; } /* comment */
+  pre .k { color: #f472b6; }                     /* keyword */
+  pre .s { color: #fcd34d; }                     /* string */
+  pre .n { color: #93c5fd; }                     /* number */
+  pre .v { color: #86efac; }                     /* variable */
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm 0; font-size: 10.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #cbd5e1; padding: 2.5mm 3mm; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 600; }
+
+  .callout {
+    border-left: 4px solid; padding: 3mm 4mm; margin: 3mm 0 5mm 0;
+    background: #f8fafc; border-radius: 0 4px 4px 0; page-break-inside: avoid;
+  }
+  .callout .head { font-weight: 700; margin-bottom: 1.5mm; font-size: 10.5pt; text-transform: uppercase; letter-spacing: .5pt; }
+  .callout.info    { border-color: #0ea5e9; } .callout.info    .head { color: #075985; }
+  .callout.warn    { border-color: #f59e0b; background: #fffbeb; } .callout.warn .head { color: #92400e; }
+  .callout.gotcha  { border-color: #ef4444; background: #fef2f2; } .callout.gotcha .head { color: #991b1b; }
+  .callout.tip     { border-color: #22c55e; background: #f0fdf4; } .callout.tip .head { color: #166534; }
+  .callout.recap   { border-color: #8b5cf6; background: #faf5ff; } .callout.recap .head { color: #6b21a8; }
+
+  /* Diagramas em ASCII */
+  .diagram {
+    background: #0f172a; color: #e2e8f0; padding: 4mm 5mm; border-radius: 5px;
+    font-family: "JetBrains Mono", Consolas, monospace; font-size: 9pt; line-height: 1.4;
+    white-space: pre; overflow-x: auto; margin: 3mm 0 5mm 0; page-break-inside: avoid;
+  }
+
+  .toc { page-break-after: always; }
+  .toc h1 { font-size: 22pt; margin: 0 0 6mm 0; border-bottom: 3px solid #22c55e; padding-bottom: 4mm; }
+  .toc ol { list-style: none; counter-reset: chap; padding: 0; }
+  .toc ol > li { counter-increment: chap; margin: 2mm 0; display: flex; align-items: baseline; }
+  .toc ol > li::before {
+    content: counter(chap, decimal-leading-zero);
+    background: #14532d; color: #fff; padding: 1pt 5pt; border-radius: 3px;
+    font-size: 9.5pt; margin-right: 3mm; min-width: 14pt; text-align: center;
+  }
+  .toc ol > li .title { flex: 1; }
+  .toc ol > li .dots { flex: 1; border-bottom: 1px dotted #94a3b8; margin: 0 2mm 1mm; height: 1pt; }
+  .toc ol > li .pg { color: #64748b; font-variant-numeric: tabular-nums; }
+
+  .kbd { background:#e2e8f0; border:1px solid #94a3b8; border-radius:3px; padding:0 4pt; font-family: inherit; font-size: 9.5pt; }
+
+  .small { font-size: 10pt; color: #475569; }
+  hr { border: none; border-top: 1px dashed #cbd5e1; margin: 6mm 0; }
+
+  .twocol { display: flex; gap: 4mm; }
+  .twocol > div { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============= CAPA ============= -->
+<section class="cover">
+  <div class="tag">Quase Nada Software House — Aula técnica</div>
+  <h1>Deploy de um backend Node.js<br>no Oracle Cloud Free Tier</h1>
+  <h2>Do <code style="background:rgba(255,255,255,.15);color:#fff;padding:1pt 5pt;border-radius:3px;">ssh ubuntu@...</code> ao <code style="background:rgba(255,255,255,.15);color:#fff;padding:1pt 5pt;border-radius:3px;">/health</code> respondendo da internet</h2>
+  <div class="meta">
+    <div><strong>Projeto:</strong> Quase Nada Finanças — agregador financeiro + investimento cripto</div>
+    <div><strong>Stack:</strong> Fastify · Prisma · PostgreSQL · Redis · BullMQ · Docker Compose · Expo</div>
+    <div><strong>Servidor:</strong> Oracle Cloud Infrastructure (OCI) — Ubuntu 22.04 ARM/AMD64 Free Tier</div>
+    <div><strong>Autor:</strong> Anotações compiladas durante o deploy real do server <code style="background:rgba(255,255,255,.15);color:#fff;padding:1pt 4pt;border-radius:3px;">quase-nada-server-2</code></div>
+    <div><strong>Data:</strong> 16 de maio de 2026</div>
+  </div>
+</section>
+
+<!-- ============= SUMÁRIO ============= -->
+<section class="toc">
+  <h1>Sumário</h1>
+  <ol>
+    <li><span class="title">Visão geral: o que estamos deployando e por quê</span><span class="dots"></span><span class="pg">3</span></li>
+    <li><span class="title">Topologia: como as peças conversam</span><span class="dots"></span><span class="pg">5</span></li>
+    <li><span class="title">SSH com chave privada — autenticação sem senha</span><span class="dots"></span><span class="pg">7</span></li>
+    <li><span class="title">Diagnóstico inicial: lendo o estado de uma máquina nova</span><span class="dots"></span><span class="pg">9</span></li>
+    <li><span class="title">Memória virtual (swap): por que 1 GB de RAM não chega</span><span class="dots"></span><span class="pg">12</span></li>
+    <li><span class="title">Instalando Docker do jeito certo</span><span class="dots"></span><span class="pg">15</span></li>
+    <li><span class="title">Firewall em duas camadas: iptables + Security List do OCI</span><span class="dots"></span><span class="pg">18</span></li>
+    <li><span class="title">Transferindo código: <code>tar | ssh tar</code> quando não há rsync</span><span class="dots"></span><span class="pg">22</span></li>
+    <li><span class="title">Segredos de produção: <code>openssl rand</code>, heredoc e <code>chmod 600</code></span><span class="dots"></span><span class="pg">24</span></li>
+    <li><span class="title">Anatomia de um Dockerfile multi-stage</span><span class="dots"></span><span class="pg">27</span></li>
+    <li><span class="title">docker-compose.yml dissecado linha por linha</span><span class="dots"></span><span class="pg">31</span></li>
+    <li><span class="title">Migrations de banco no startup do container</span><span class="dots"></span><span class="pg">35</span></li>
+    <li><span class="title">Os bugs TypeScript que apareceram (e o que aprender com eles)</span><span class="dots"></span><span class="pg">37</span></li>
+    <li><span class="title">Frontend Expo apontando para o backend remoto</span><span class="dots"></span><span class="pg">41</span></li>
+    <li><span class="title">Operação no dia a dia: comandos de manutenção</span><span class="dots"></span><span class="pg">44</span></li>
+    <li><span class="title">O que falta para chamar de "produção de verdade"</span><span class="dots"></span><span class="pg">46</span></li>
+  </ol>
+  <p style="margin-top:6mm" class="small"><strong>Apêndices:</strong> A. Comandos de referência rápida · B. Glossário de termos</p>
+</section>
+
+<!-- ============= MÓDULO 1 ============= -->
+<h1 class="modulo"><span class="num">01</span>Visão geral: o que estamos deployando e por quê</h1>
+
+<p>O <strong>Quase Nada Finanças</strong> é um aplicativo mobile (React Native + Expo) cujo backend agrega contas bancárias do usuário via <em>open finance</em> (Pluggy), categoriza transações e ainda permite ordens de compra cripto na Binance. Tudo isso roda num servidor Node.js feito com <em>Fastify</em>, que conversa com PostgreSQL para persistência e Redis para fila de jobs em background.</p>
+
+<p>O objetivo desta aula é destrinchar o processo de tirar esse backend do seu PC e colocar ele numa VM da Oracle Cloud — uma das poucas nuvens que ainda oferece tier gratuito perpétuo decente — explicando <strong>cada decisão</strong> tomada ao longo do caminho. Não é "siga estes passos"; é "entenda por que esses passos existem".</p>
+
+<h2>Por que Oracle Cloud Free Tier?</h2>
+<p>Existem três motivos práticos:</p>
+<ol>
+  <li><strong>Always Free</strong>: 2 VMs AMD64 ou até 4 VMs ARM64 Ampere, sem cartão de crédito sendo cobrado depois de 30 dias. AWS/GCP/Azure não dão isso.</li>
+  <li><strong>IPv4 público fixo</strong>: cada VM ganha um endereço público próprio, o que evita gambiarra de DDNS para deploy de aplicativos mobile.</li>
+  <li><strong>Banda decente</strong>: 10 TB/mês de saída no plano gratuito. Render/Railway cobram saída a partir do primeiro GB.</li>
+</ol>
+
+<p>A contrapartida: a Oracle não te dá nada de mão beijada. Você recebe uma Ubuntu pelada, sem Docker, sem nginx, com firewall fechado em duas camadas distintas. Tem que saber o que está fazendo.</p>
+
+<h2>O que vamos deixar rodando</h2>
+
+<table>
+  <tr><th>Componente</th><th>Imagem Docker</th><th>Função</th><th>Porta interna</th></tr>
+  <tr><td><code>qnf-postgres</code></td><td><code>postgres:16-alpine</code></td><td>Persistência relacional (usuários, contas, transações)</td><td>5432</td></tr>
+  <tr><td><code>qnf-redis</code></td><td><code>redis:7-alpine</code></td><td>Fila BullMQ + cache de cotações Binance</td><td>6379</td></tr>
+  <tr><td><code>qnf-backend</code></td><td>build local</td><td>API HTTP Fastify (auth, contas, transações, dashboards, Binance)</td><td>3000</td></tr>
+  <tr><td><code>qnf-worker</code></td><td>build local</td><td>Processador da fila — sincroniza contas Pluggy a cada 4h</td><td>—</td></tr>
+</table>
+
+<p>Apenas o backend (porta 3000) é exposto para a internet. Postgres e Redis ficam acessíveis somente pela rede privada do Docker.</p>
+
+<div class="callout recap">
+  <div class="head">Recapitulando</div>
+  Backend em Node + Postgres + Redis + worker, tudo orquestrado por <code>docker compose</code>, rodando numa VM Ubuntu gratuita da Oracle, com firewall fechado e API exposta apenas onde necessário.
+</div>
+
+<!-- ============= MÓDULO 2 ============= -->
+<h1 class="modulo"><span class="num">02</span>Topologia: como as peças conversam</h1>
+
+<p>Antes de mexer em qualquer arquivo, vale entender o caminho que uma requisição faz desde o celular do usuário até o banco e voltar. Esse desenho mental evita 90% dos erros de configuração — você passa a saber <em>onde</em> uma falha tem que estar antes de procurar.</p>
+
+<div class="diagram">
+                       INTERNET (HTTP)
+                              |
+        +---------------------+---------------------+
+        |                                            |
+   Celular do                                  PC do dev
+   usuario (Expo                              (Metro bundler
+   prod build)                                 servindo JS)
+        |                                            |
+        |     EXPO_PUBLIC_API_URL aponta aqui        |
+        |     http://136.248.95.162:3000/api/v1      |
+        v                                            v
+   +-----------------------------------------------------------+
+   |    OCI VCN  (Virtual Cloud Network)                       |
+   |  Security List: TCP 22 e 3000 abertos para 0.0.0.0/0      |
+   +----------------------------+------------------------------+
+                                |
+                       Porta 22 e 3000
+                                |
+                                v
+   +-----------------------------------------------------------+
+   |   VM Ubuntu 22.04 quase-nada-server-2  (136.248.95.162)   |
+   |                                                           |
+   |   iptables INPUT:  ACCEPT 22, ACCEPT 3000, REJECT resto   |
+   |                                                           |
+   |   +-----------------  Docker bridge ---------------------+|
+   |   |                                                      ||
+   |   |  qnf-backend :3000  ----JS over TCP---> qnf-postgres ||
+   |   |        ^                                  :5432      ||
+   |   |        |                                             ||
+   |   |        +--BullMQ jobs--> qnf-redis :6379             ||
+   |   |                              ^                       ||
+   |   |                              |                       ||
+   |   |  qnf-worker  ----consome-----+                       ||
+   |   +------------------------------------------------------+|
+   |                                                           |
+   |   Postgres e Redis BIND apenas em 127.0.0.1:* no host     |
+   +-----------------------------------------------------------+
+</div>
+
+<h2>Camadas, da fora para dentro</h2>
+
+<ol>
+  <li><strong>OCI VCN (Virtual Cloud Network)</strong> — é o equivalente da Oracle ao "Security Group" da AWS. Ele bloqueia ou libera tráfego antes mesmo dele chegar na sua VM. Por padrão só 22 (SSH) está aberto. Você tem que abrir 3000 manualmente no console da Oracle (o motivo do único passo manual deste deploy).</li>
+  <li><strong>iptables da VM</strong> — segundo filtro, agora dentro do sistema operacional. A imagem Ubuntu da Oracle vem com <code>iptables-persistent</code> e regras default que <em>rejeitam</em> tudo exceto SSH. Adicionamos uma regra <code>ACCEPT</code> para 3000.</li>
+  <li><strong>Bridge do Docker</strong> — uma rede virtual interna criada automaticamente pelo Compose. Os containers se enxergam pelos nomes (<code>postgres</code>, <code>redis</code>, etc.), o que é magia DNS interna do Docker.</li>
+  <li><strong>Bind do host</strong> — quando publicamos <code>"127.0.0.1:5432:5432"</code> em vez de <code>"5432:5432"</code>, o Postgres só responde a conexões originadas <em>do próprio servidor</em>. Defesa em camadas: mesmo se alguém burlasse os dois firewalls anteriores, ainda esbarraria nessa terceira barreira.</li>
+</ol>
+
+<div class="callout tip">
+  <div class="head">Heurística mental</div>
+  Quando uma conexão não funciona, faça a pergunta <em>"qual camada bloqueou?"</em> e ataque uma de cada vez: <code>curl 127.0.0.1:PORT</code> testa o app, <code>curl 10.0.0.x:PORT</code> testa a rede interna, <code>curl IP_PUBLICO:PORT</code> testa o firewall externo. Quando você sabe qual camada falhou, o conserto é trivial.
+</div>
+
+<!-- ============= MÓDULO 3 ============= -->
+<h1 class="modulo"><span class="num">03</span>SSH com chave privada — autenticação sem senha</h1>
+
+<p>Quando você cria uma instância na Oracle Cloud, o console pede para você fazer upload (ou geração) de um par de chaves SSH. A chave <strong>pública</strong> fica registrada no servidor em <code>/home/ubuntu/.ssh/authorized_keys</code>; a <strong>privada</strong> fica com você. Essa assimetria é o coração da criptografia de chave pública.</p>
+
+<h2>O comando que abre a sessão</h2>
+<pre><code><span class="v">ssh</span> -i <span class="s">"C:\Users\vinim\.ssh\private_oracle_quase_nada_server2.key"</span> ubuntu@136.248.95.162</code></pre>
+
+<table>
+<tr><th>Parte</th><th>O que faz</th></tr>
+<tr><td><code>ssh</code></td><td>Cliente SSH (Secure SHell). No Windows 10/11 vem nativo desde 2019.</td></tr>
+<tr><td><code>-i caminho</code></td><td><em>Identity file</em>. Diz qual chave privada usar. Sem isso, o cliente tenta as chaves padrão em <code>~/.ssh/</code> (id_rsa, id_ed25519...) e falha.</td></tr>
+<tr><td><code>ubuntu@</code></td><td>Usuário no destino. Em imagens cloud é convenção ter um usuário sem senha mas com sudo NOPASSWD — no Ubuntu da Oracle, é <code>ubuntu</code>.</td></tr>
+<tr><td><code>136.248.95.162</code></td><td>IP público da VM. Poderia ser um hostname (se você configurar DNS), mas IP cru funciona.</td></tr>
+</table>
+
+<h2>Por que não pode usar senha?</h2>
+<p>Tecnicamente até dá pra habilitar autenticação por senha em SSH. Mas:</p>
+<ul>
+  <li>Senhas são vulneráveis a brute force. Em uns 3 minutos depois de subir uma VM com IP público, você já vê tentativas de login automatizadas nos logs (<code>journalctl -u ssh</code>). A Oracle desabilita por padrão para evitar isso.</li>
+  <li>Chave privada é praticamente impossível de adivinhar — são 256 bits de entropia (ED25519) ou 4096 bits (RSA).</li>
+</ul>
+
+<h2>Cuidados com o arquivo <code>.key</code></h2>
+<div class="callout warn">
+  <div class="head">Permissões importam</div>
+  No Linux/Mac, o cliente SSH <strong>recusa</strong> a chave se o arquivo não estiver com permissão 600 (apenas dono lê e escreve). No Windows o NTFS faz isso por ACL — se aparecer <code>Permissions for 'key' are too open</code>, vá nas propriedades → Segurança → Avançado → Desabilitar herança → manter apenas o seu usuário com Leitura.
+</div>
+
+<h2>O <code>StrictHostKeyChecking</code> da primeira conexão</h2>
+<p>Na primeira vez que você conecta num servidor, o SSH mostra a <em>fingerprint</em> (hash da chave pública do servidor) e pergunta se você confia. Ele grava em <code>~/.ssh/known_hosts</code>. Da segunda vez em diante, se a fingerprint mudou, ele <strong>recusa conectar</strong> alegando possível ataque MITM. Para automação eu usei <code>-o StrictHostKeyChecking=no</code> só na primeira chamada — em produção, jamais.</p>
+
+<div class="callout gotcha">
+  <div class="head">Pegadinha</div>
+  Se você destrói e recria a VM no mesmo IP, a chave do servidor muda e seu SSH vai recusar. Remova a entrada antiga: <code>ssh-keygen -R 136.248.95.162</code>. É um erro que assusta gente que nunca viu.
+</div>
+
+<!-- ============= MÓDULO 4 ============= -->
+<h1 class="modulo"><span class="num">04</span>Diagnóstico inicial: lendo o estado de uma máquina nova</h1>
+
+<p>Antes de instalar qualquer coisa, eu rodei uma bateria de comandos para entender o que tinha pela frente. Esse hábito separa quem sabe administrar máquinas de quem só copia tutoriais.</p>
+
+<h2>O kit de inspeção</h2>
+
+<pre><code><span class="v">uname</span> -a              <span class="c"># kernel e arquitetura</span>
+<span class="v">lsb_release</span> -a        <span class="c"># distribuição e versão</span>
+<span class="v">df</span> -h /              <span class="c"># espaço em disco</span>
+<span class="v">free</span> -h              <span class="c"># memória RAM e swap</span>
+<span class="k">which</span> docker          <span class="c"># algum docker pré-instalado?</span>
+<span class="v">sudo</span> ufw status       <span class="c"># firewall ufw está ativo?</span>
+<span class="v">sudo</span> iptables -L INPUT -n --line-numbers   <span class="c"># regras de firewall reais</span>
+<span class="v">ss</span> -tlnp              <span class="c"># que portas estão escutando?</span></code></pre>
+
+<h2>Lendo a saída crítica deste servidor</h2>
+
+<table>
+<tr><th>Comando</th><th>Saída relevante</th><th>O que isso me disse</th></tr>
+<tr>
+  <td><code>uname -a</code></td>
+  <td><code>Linux ... 6.8.0-1049-oracle ... x86_64</code></td>
+  <td>Kernel da Oracle (otimizado pra OCI). AMD64, não ARM — confirma a forma da VM. Docker images precisam ser amd64.</td>
+</tr>
+<tr>
+  <td><code>lsb_release</code></td>
+  <td><code>Ubuntu 22.04.5 LTS (jammy)</code></td>
+  <td>Distro LTS, codinome <code>jammy</code>. Importante porque o repo Docker oficial precisa do codinome para escolher os pacotes certos.</td>
+</tr>
+<tr>
+  <td><code>free -h</code></td>
+  <td><code>Mem 956Mi · Swap 0B</code></td>
+  <td><strong>Sinal de alerta</strong>: menos de 1 GB de RAM e zero swap. Postgres+Redis+Node+Worker vão estourar. Tem que adicionar swap antes de qualquer coisa.</td>
+</tr>
+<tr>
+  <td><code>df -h /</code></td>
+  <td><code>45G  2.3G used</code></td>
+  <td>Sobra disco — 43 GB livres. Imagens Docker são gordas, mas dá folga.</td>
+</tr>
+<tr>
+  <td><code>iptables -L INPUT</code></td>
+  <td>Regras 1–5 ACCEPT, regra final REJECT</td>
+  <td>Firewall padrão Oracle. Tudo bloqueado exceto SSH. Vou precisar inserir regra para 3000 antes do REJECT final.</td>
+</tr>
+<tr>
+  <td><code>ss -tlnp</code></td>
+  <td>Apenas sshd:22 e systemd-resolved:53</td>
+  <td>Máquina limpa. Nenhum serviço de aplicação rodando.</td>
+</tr>
+</table>
+
+<h2>O que cada um desses comandos significa</h2>
+
+<h3><code>uname -a</code></h3>
+<p>"Unix name, all". Mostra o kernel rodando. O <code>x86_64</code> no final é a arquitetura — fundamental para escolher binários compatíveis. Se fosse <code>aarch64</code> (ARM), todo o resto seria diferente — algumas imagens Docker não têm build ARM, por exemplo.</p>
+
+<h3><code>free -h</code></h3>
+<p>Memória em formato humano. As colunas relevantes:</p>
+<ul>
+  <li><strong>total</strong>: RAM física instalada.</li>
+  <li><strong>used</strong>: o que o kernel <em>tirou</em> dela.</li>
+  <li><strong>available</strong>: o que efetivamente pode ser alocado por novos processos. Esse é o número que importa.</li>
+  <li><strong>Swap</strong>: memória virtual em disco (próximo módulo).</li>
+</ul>
+
+<h3><code>iptables -L INPUT -n --line-numbers</code></h3>
+<p>Lista as regras da chain <em>INPUT</em> (pacotes <em>entrando</em>) com números de linha. As regras são avaliadas em ordem; assim que uma casa, o resto não é avaliado. O <code>-n</code> mostra IPs e portas numéricos (sem resolver DNS, mais rápido).</p>
+
+<div class="callout info">
+  <div class="head">Conceito: ordem em iptables</div>
+  Como iptables é "first match wins", inserir uma regra na <em>posição</em> certa é essencial. Adicionar com <code>-A</code> (append) coloca <em>no fim</em> — depois do REJECT final, sem efeito. Use <code>-I N</code> (insert na posição N) para colocar antes do REJECT. Foi exatamente o que fizemos.
+</div>
+
+<!-- ============= MÓDULO 5 ============= -->
+<h1 class="modulo"><span class="num">05</span>Memória virtual (swap): por que 1 GB de RAM não chega</h1>
+
+<p>Esta VM tem 956 MB de RAM. Vamos rodar simultaneamente:</p>
+
+<ul>
+  <li><strong>PostgreSQL 16</strong> — em idle consome ~80 MB; com workload chega fácil a 300 MB.</li>
+  <li><strong>Redis 7</strong> — ~10 MB ocioso, mas com appendonly fsync pode picar.</li>
+  <li><strong>Node.js (Fastify API)</strong> — base do Node V8 são ~50 MB + heap. Em produção comum 150–250 MB.</li>
+  <li><strong>Node.js (worker BullMQ)</strong> — mesma coisa, mais ~150 MB.</li>
+</ul>
+
+<p>Some: ~700 MB no piso, fácil estourar 1 GB em pico. Sem swap, o kernel chama o <em>OOM killer</em> (Out Of Memory) e mata o processo mais "guloso" — geralmente o Postgres, justo o que você <strong>não</strong> quer morto.</p>
+
+<h2>O que é swap?</h2>
+<p>Swap é uma extensão da RAM usando o disco. Quando a RAM enche, o kernel move páginas pouco usadas pra um arquivo (ou partição) chamado <em>swap</em>, liberando RAM real. É <strong>muito</strong> mais lento que RAM (SSDs modernos são ~100× mais lentos que DDR4), mas evita o OOM killer.</p>
+
+<div class="diagram">
+  RAM (956 MB)         Swap (2 GB no /swapfile)
+  +-------------+      +-----------------------+
+  |  Postgres   |      |                       |
+  |  Redis      |      |   Páginas "frias"     |
+  |  Backend    | <==> |   movidas para cá     |
+  |  Worker     |      |   quando RAM enche    |
+  |  Kernel     |      |                       |
+  +-------------+      +-----------------------+
+       ^                          ^
+       |                          |
+   "working set"        "tudo que cabe sobrar"
+   (acesso frequente)   (acesso raro)
+</div>
+
+<h2>Os passos que executei</h2>
+
+<pre><code><span class="v">sudo</span> fallocate -l 2G /swapfile
+<span class="v">sudo</span> chmod 600 /swapfile
+<span class="v">sudo</span> mkswap /swapfile
+<span class="v">sudo</span> swapon /swapfile
+<span class="k">echo</span> <span class="s">'/swapfile none swap sw 0 0'</span> | <span class="v">sudo</span> tee -a /etc/fstab
+<span class="v">sudo</span> sysctl vm.swappiness=10</code></pre>
+
+<table>
+<tr><th>Comando</th><th>Por que existe</th></tr>
+<tr><td><code>fallocate -l 2G /swapfile</code></td><td>Aloca 2 GB contíguos. É <em>muito</em> mais rápido que <code>dd if=/dev/zero</code> antigamente usado — em vez de escrever zeros, ele só reserva no filesystem.</td></tr>
+<tr><td><code>chmod 600 /swapfile</code></td><td>Só o root pode ler. Crítico: dados sensíveis em memória (chaves, senhas) podem acabar no swap; outros usuários não podem espiar.</td></tr>
+<tr><td><code>mkswap /swapfile</code></td><td>"Formata" o arquivo como espaço de swap (escreve a estrutura interna que o kernel espera).</td></tr>
+<tr><td><code>swapon /swapfile</code></td><td>Ativa o swap <em>agora</em>. Sem persistência — sumiria no reboot.</td></tr>
+<tr><td><code>echo '...' &gt;&gt; /etc/fstab</code></td><td>Persiste. <code>fstab</code> (filesystem table) é lido no boot e ativa swap/partições automaticamente.</td></tr>
+<tr><td><code>sysctl vm.swappiness=10</code></td><td>Diz pro kernel: "use swap só quando for muito necessário". Default no Ubuntu é 60 (agressivo). 10 é conservador — bom para servidores.</td></tr>
+</table>
+
+<div class="callout tip">
+  <div class="head">Regra de bolso</div>
+  Swap igual à RAM é o velho conselho de quando RAM era cara. Hoje, <strong>swap = 2× RAM</strong> para máquinas pequenas (&lt;2 GB) é mais útil. Para máquinas grandes (&gt;16 GB), 4–8 GB de swap basta.
+</div>
+
+<h2>Validando o resultado</h2>
+<pre><code><span class="v">free</span> -h
+<span class="c"># Mem: 956Mi total ... 599Mi available</span>
+<span class="c"># Swap: 2.0Gi total · 0B used · 2.0Gi free</span></code></pre>
+
+<p>Swap criado e ainda vazio (como esperado em idle). Quando o workload subir, o kernel começa a usar.</p>
+
+<div class="callout warn">
+  <div class="head">Swap não é solução, é airbag</div>
+  Se sua aplicação <em>regularmente</em> usa swap, ela vai estar lenta demais. Swap é colchão para picos eventuais; uso constante = upgrade de RAM (ou shape maior na Oracle).
+</div>
+
+<!-- ============= MÓDULO 6 ============= -->
+<h1 class="modulo"><span class="num">06</span>Instalando Docker do jeito certo</h1>
+
+<p>Existem três formas de instalar Docker no Ubuntu:</p>
+
+<table>
+<tr><th>Método</th><th>Vantagem</th><th>Problema</th></tr>
+<tr><td><code>apt install docker.io</code></td><td>Um comando só</td><td>Vem desatualizado (versão do repo Ubuntu, atrasa meses). Sem o plugin oficial <code>docker compose</code>.</td></tr>
+<tr><td><code>curl get.docker.com | sh</code></td><td>Funciona em qualquer distro</td><td>Script grande, opaco, baixa e executa código root. Recomendado apenas para experimentação.</td></tr>
+<tr><td>Repo oficial da Docker Inc.</td><td>Sempre atualizado, plugin Compose incluso, processo auditável</td><td>Mais comandos pra digitar</td></tr>
+</table>
+
+<p>Fui pelo terceiro caminho. Vale entender o que cada bloco faz.</p>
+
+<h2>1) Pré-requisitos e chaves GPG</h2>
+
+<pre><code><span class="v">sudo</span> apt-get update -qq
+<span class="v">sudo</span> apt-get install -y ca-certificates curl gnupg lsb-release rsync iptables-persistent
+<span class="v">sudo</span> install -m 0755 -d /etc/apt/keyrings
+<span class="v">curl</span> -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | <span class="v">sudo</span> gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes</code></pre>
+
+<p>O <code>apt</code> usa <em>assinaturas GPG</em> para verificar que os pacotes vieram realmente da fonte declarada — sem isso, qualquer um que controle o caminho de rede poderia injetar pacotes maliciosos. A chave pública da Docker é baixada e convertida em formato binário (<code>--dearmor</code>) para uma pasta confiável.</p>
+
+<h2>2) Adicionar o repositório</h2>
+
+<pre><code><span class="k">echo</span> <span class="s">"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"</span> \
+  | <span class="v">sudo</span> tee /etc/apt/sources.list.d/docker.list</code></pre>
+
+<p>Essa linha gigante diz para o <code>apt</code>:</p>
+<ul>
+  <li><code>deb</code>: tipo de repositório binário.</li>
+  <li><code>arch=$(dpkg --print-architecture)</code>: pega <code>amd64</code> ou <code>arm64</code> dinamicamente. Importante para a portabilidade do script.</li>
+  <li><code>signed-by=...</code>: só aceita pacotes assinados por aquela chave que baixamos.</li>
+  <li><code>$(lsb_release -cs)</code>: substitui pelo codinome (<code>jammy</code> nesta VM). Sem isso o apt baixaria pacotes do Debian errado.</li>
+</ul>
+
+<h2>3) Instalar os pacotes</h2>
+
+<pre><code><span class="v">sudo</span> apt-get update -qq
+<span class="v">sudo</span> apt-get install -y docker-ce docker-ce-cli containerd.io \
+                       docker-buildx-plugin docker-compose-plugin</code></pre>
+
+<table>
+<tr><th>Pacote</th><th>O que é</th></tr>
+<tr><td><code>docker-ce</code></td><td>O daemon — processo de longa duração que gerencia os containers.</td></tr>
+<tr><td><code>docker-ce-cli</code></td><td>O cliente (<code>docker ps</code>, <code>docker build</code>...). Conversa com o daemon via socket Unix.</td></tr>
+<tr><td><code>containerd.io</code></td><td>Runtime de containers de baixo nível. O daemon Docker delega para ele.</td></tr>
+<tr><td><code>docker-buildx-plugin</code></td><td>BuildKit moderno, build multi-arquitetura, cache eficiente.</td></tr>
+<tr><td><code>docker-compose-plugin</code></td><td>Permite usar <code>docker compose</code> (sem hífen) — versão moderna, escrita em Go, integrada ao CLI.</td></tr>
+</table>
+
+<div class="callout info">
+  <div class="head">docker-compose vs docker compose</div>
+  <code>docker-compose</code> (com hífen) é a v1, escrita em Python, descontinuada. <code>docker compose</code> (sem hífen) é a v2, plugin Go nativo. APIs idênticas em 95% dos casos. Use <strong>sem hífen</strong> sempre que possível.
+</div>
+
+<h2>4) Permissões e habilitação</h2>
+
+<pre><code><span class="v">sudo</span> usermod -aG docker ubuntu
+<span class="v">sudo</span> systemctl enable --now docker</code></pre>
+
+<p>O <code>usermod -aG docker ubuntu</code> adiciona o usuário <code>ubuntu</code> ao grupo <code>docker</code>, que tem permissão para falar com o socket do daemon — assim você não precisa de <code>sudo</code> antes de cada <code>docker</code>.</p>
+
+<div class="callout gotcha">
+  <div class="head">Pegadinha que pega muita gente</div>
+  A mudança de grupo só vale para <em>novas sessões</em>. Na mesma sessão SSH em que você executou o <code>usermod</code>, o <code>docker ps</code> sem sudo ainda dá <em>permission denied</em>. Saia e entre de novo (<code>exit</code> + reconectar), ou use <code>newgrp docker</code> pra forçar reload. Por isso ainda usei <code>sudo docker compose</code> nos comandos do mesmo SSH — era a sessão original.
+</div>
+
+<p>O <code>systemctl enable --now docker</code> faz duas coisas: <em>enable</em> liga o daemon no boot, <em>--now</em> também inicia agora.</p>
+
+<!-- ============= MÓDULO 7 ============= -->
+<h1 class="modulo"><span class="num">07</span>Firewall em duas camadas: iptables + Security List do OCI</h1>
+
+<p>Este é o ponto que mais confunde quem nunca usou OCI. Existem <strong>dois</strong> firewalls separados em série, e os dois precisam liberar o tráfego.</p>
+
+<div class="diagram">
+                   Pacote chegando na porta 3000
+                              |
+                              v
+   +---------------------------------------------------+
+   | OCI VCN Security List (controle de rede da Oracle)|
+   |  - regra default: só 22 permitido                 |
+   |  - tem que adicionar 3000 manualmente no console  |
+   +-------------------+-------------------------------+
+                       |
+                       | (se passou)
+                       v
+   +---------------------------------------------------+
+   | iptables do sistema (firewall do kernel Linux)    |
+   |  - regra final: REJECT all                        |
+   |  - tem que inserir ACCEPT 3000 antes do REJECT    |
+   +-------------------+-------------------------------+
+                       |
+                       | (se passou)
+                       v
+              +-----------------+
+              | docker-proxy    |
+              | escutando :3000 |
+              +-----------------+
+</div>
+
+<h2>Camada 1: iptables (faço pelo SSH)</h2>
+
+<pre><code><span class="v">sudo</span> iptables -I INPUT 5 -p tcp -m state --state NEW -m tcp --dport 3000 -j ACCEPT
+<span class="v">sudo</span> netfilter-persistent save</code></pre>
+
+<p>Esmiuçando:</p>
+<ul>
+  <li><code>-I INPUT 5</code> — <em>Insert</em> na chain INPUT, na <strong>posição 5</strong>. A posição 6 era o REJECT final. Se eu tivesse usado <code>-A</code> (append) entraria na posição 7, depois do REJECT — inútil.</li>
+  <li><code>-p tcp</code> — pacotes TCP.</li>
+  <li><code>-m state --state NEW</code> — match no módulo <em>state</em>, somente pacotes que iniciam conexão. Pacotes de conexões já estabelecidas são tratados pela regra 1, mais rápida.</li>
+  <li><code>--dport 3000</code> — destino: porta 3000.</li>
+  <li><code>-j ACCEPT</code> — ação: aceitar.</li>
+</ul>
+
+<p>O <code>netfilter-persistent save</code> grava o conjunto atual em <code>/etc/iptables/rules.v4</code> para que a regra sobreviva ao reboot. Por isso instalamos <code>iptables-persistent</code> lá atrás.</p>
+
+<h2>Camada 2: VCN Security List (manual no console OCI)</h2>
+
+<p>Esta camada não dá pra alterar via SSH. É um recurso de rede da Oracle, configurável só pelo Console OCI ou pela CLI da Oracle (que requer mais setup).</p>
+
+<p>Caminho no console:</p>
+<ol>
+  <li><strong>Networking</strong> → <strong>Virtual Cloud Networks</strong></li>
+  <li>Abrir o VCN da sua instância</li>
+  <li>Aba <strong>Security Lists</strong> → default</li>
+  <li><strong>Add Ingress Rule</strong>:
+    <table>
+    <tr><th>Campo</th><th>Valor</th></tr>
+    <tr><td>Source Type</td><td>CIDR</td></tr>
+    <tr><td>Source CIDR</td><td><code>0.0.0.0/0</code></td></tr>
+    <tr><td>IP Protocol</td><td>TCP</td></tr>
+    <tr><td>Source Port Range</td><td>(vazio = qualquer)</td></tr>
+    <tr><td>Destination Port Range</td><td><code>3000</code></td></tr>
+    <tr><td>Description</td><td>QNF backend (Fastify)</td></tr>
+    </table>
+  </li>
+</ol>
+
+<h2>Por que duas camadas?</h2>
+<p>Defesa em profundidade. Se uma falha (config errada, bug, comprometimento), a outra ainda protege.</p>
+
+<table>
+<tr><th>Cenário</th><th>iptables só</th><th>VCN só</th><th>Os dois</th></tr>
+<tr><td>Admin esquece de iptables</td><td>—</td><td>Bloqueia</td><td>Bloqueia</td></tr>
+<tr><td>Vulnerabilidade no kernel</td><td>Vazaria</td><td>Bloqueia</td><td>Bloqueia</td></tr>
+<tr><td>Erro no Security List</td><td>Bloqueia</td><td>Vazaria</td><td>Bloqueia</td></tr>
+</table>
+
+<div class="callout tip">
+  <div class="head">Validação rápida das duas camadas</div>
+  De <strong>dentro</strong> da VM: <code>curl 127.0.0.1:3000/health</code>. Se responde → app ok.<br>
+  De <strong>fora</strong> da VM: <code>curl http://IP_PUBLICO:3000/health</code>. Se timeouta → uma das duas camadas bloqueando.<br>
+  Para saber qual: <code>sudo iptables -L INPUT -n | grep 3000</code>. Se mostra a regra, então é o VCN.
+</div>
+
+<h2>Por que não usar UFW?</h2>
+<p>UFW é só um "wrapper amigável" em cima de iptables. Em servidores cloud com regras herdadas (como a Oracle, que já vem configurada), misturar UFW pode dar conflito — ele reescreve as chains. Para evitar surpresa, deixei UFW como veio (<code>inactive</code>) e mexi direto em iptables.</p>
+
+<!-- ============= MÓDULO 8 ============= -->
+<h1 class="modulo"><span class="num">08</span>Transferindo código: <code>tar | ssh tar</code> quando não há rsync</h1>
+
+<p>Para enviar o código do meu PC para a VM, existem várias opções:</p>
+
+<ol>
+  <li><code>git clone</code> direto no servidor — mas exige que o repo esteja no GitHub e que o servidor tenha credencial pra puxar.</li>
+  <li><code>scp -r pasta</code> — funciona, mas reenvia tudo a cada execução, sem deltas.</li>
+  <li><code>rsync -avz</code> — manda só o que mudou, eficiente. Mas no Windows não vem instalado.</li>
+  <li><code>tar -czf - . | ssh remote "tar -xzf -"</code> — usa só tar e ssh, ambos nativos. Foi o que usei.</li>
+</ol>
+
+<h2>O comando exato</h2>
+
+<pre><code><span class="v">tar</span> --exclude=node_modules --exclude=dist --exclude=.env --exclude=.env.local \
+    -czf - . \
+  | <span class="v">ssh</span> -i <span class="s">"...key"</span> ubuntu@136.248.95.162 \
+    <span class="s">"tar -xzf - -C /home/ubuntu/quase-nada-financas/backend"</span></code></pre>
+
+<h2>Como isso funciona</h2>
+
+<ol>
+  <li><code>tar -czf - .</code> — empacota o diretório atual (<code>.</code>), comprime com gzip (<code>-z</code>) e escreve em <strong>stdout</strong> (<code>-f -</code>). Nada toca o disco.</li>
+  <li><code>|</code> — o pipe envia o stdout do tar para o stdin do próximo comando.</li>
+  <li><code>ssh ... "tar -xzf - -C destino"</code> — abre conexão SSH, executa do outro lado o tar reverso: lê de stdin (<code>-f -</code>), descompacta (<code>-x</code>) dentro do destino (<code>-C</code>).</li>
+</ol>
+
+<p>Resultado: arquivo nenhum criado em lugar nenhum. O conteúdo flui pela rede já comprimido, é descomprimido direto no destino. Elegante.</p>
+
+<h2>Os <code>--exclude</code></h2>
+
+<table>
+<tr><th>Padrão</th><th>Motivo de excluir</th></tr>
+<tr><td><code>node_modules</code></td><td>Centenas de MB. Vai ser regenerado pelo <code>npm ci</code> dentro do Dockerfile, com versões corretas pra Alpine Linux.</td></tr>
+<tr><td><code>dist</code></td><td>Build local pode estar desatualizado ou compilado pra Windows. O Dockerfile faz <code>npm run build</code> dentro do container.</td></tr>
+<tr><td><code>.env</code> e <code>.env.local</code></td><td>Segredos! Não devem sair do seu PC. O <code>.env</code> de produção é gerado <em>no servidor</em>.</td></tr>
+</table>
+
+<div class="callout warn">
+  <div class="head">Clock skew nos logs do tar</div>
+  Apareceu <code>tar: tsconfig.json: time stamp is 76s in the future</code> em alguns runs. Isso é porque o relógio do meu PC (Windows) e da VM (Linux) estão dessincronizados em poucos segundos. É um <em>warning</em> inofensivo do tar — ele alerta que mtime do arquivo está no "futuro" do ponto de vista da máquina destino. Funciona normalmente. Em ambientes estritos, sincronize com NTP: <code>sudo timedatectl set-ntp true</code>.
+</div>
+
+<!-- ============= MÓDULO 9 ============= -->
+<h1 class="modulo"><span class="num">09</span>Segredos de produção: <code>openssl rand</code>, heredoc e <code>chmod 600</code></h1>
+
+<p>O backend precisa de várias variáveis de ambiente: secrets do JWT, chave de criptografia para tokens da Pluggy, credenciais de banco, URLs de APIs externas. Em desenvolvimento usamos valores placeholder; em produção tudo isso precisa ser <strong>aleatório, único e privado</strong>.</p>
+
+<h2>Geração de segredos com <code>openssl</code></h2>
+
+<pre><code><span class="v">openssl</span> rand -hex 32</code></pre>
+
+<p>Saída: 64 caracteres hexadecimais. Por trás dos panos:</p>
+<ul>
+  <li><code>rand 32</code> — gera 32 bytes (256 bits) de entropia criptográfica usando <code>/dev/urandom</code> (Linux) ou <code>CryptGenRandom</code> (Windows).</li>
+  <li><code>-hex</code> — codifica em hexadecimal. Cada byte vira 2 chars → 64 chars.</li>
+</ul>
+
+<div class="callout info">
+  <div class="head">Por que 256 bits?</div>
+  É o padrão da indústria para chaves simétricas. 128 bits ainda é considerado seguro contra força bruta clássica, mas 256 bits é o que JWT HS256, AES-256, ChaCha20 esperam — e protege contra ataques futuros com computação quântica (que enfraquecem chaves simétricas pela metade, mas 256 → 128 ainda é seguro).
+</div>
+
+<h2>Variáveis geradas</h2>
+
+<table>
+<tr><th>Variável</th><th>Uso</th><th>Tamanho</th></tr>
+<tr><td><code>JWT_ACCESS_SECRET</code></td><td>Assina tokens de acesso (15min)</td><td>32 bytes</td></tr>
+<tr><td><code>JWT_REFRESH_SECRET</code></td><td>Assina refresh tokens (30 dias)</td><td>32 bytes</td></tr>
+<tr><td><code>ENCRYPTION_KEY</code></td><td>Criptografa chaves Pluggy/Binance no banco (AES-GCM)</td><td>32 bytes</td></tr>
+</table>
+
+<div class="callout tip">
+  <div class="head">Access &amp; refresh: por que dois secrets?</div>
+  Separar permite invalidar todos os refresh tokens (rotação de chave) sem deslogar usuários ativos. Também limita o "raio de explosão" se um deles vazar.
+</div>
+
+<h2>Heredoc para gerar o arquivo</h2>
+
+<pre><code>JWT_A=$(<span class="v">openssl</span> rand -hex 32)
+JWT_R=$(<span class="v">openssl</span> rand -hex 32)
+ENC=$(<span class="v">openssl</span> rand -hex 32)
+
+<span class="k">cat</span> &gt; .env &lt;&lt;EOF
+JWT_ACCESS_SECRET=${JWT_A}
+JWT_REFRESH_SECRET=${JWT_R}
+ENCRYPTION_KEY=${ENC}
+NODE_ENV=production
+...
+EOF</code></pre>
+
+<p>O <code>&lt;&lt;EOF ... EOF</code> é um <strong>here-document</strong>: o shell trata tudo entre os <code>EOF</code> como input do comando anterior. Como não usei <code>'EOF'</code> entre aspas, as expansões <code>${JWT_A}</code> são interpretadas — exatamente o que queremos.</p>
+
+<div class="callout gotcha">
+  <div class="head">Aspas no EOF importam</div>
+  <code>&lt;&lt;EOF</code> = expande variáveis. <code>&lt;&lt;'EOF'</code> = literal, não expande. Se você quer gravar literalmente uma string <code>$VAR</code> num arquivo, use aspas simples.
+</div>
+
+<h2>Permissões do arquivo</h2>
+
+<pre><code><span class="v">chmod</span> 600 .env</code></pre>
+
+<p>Octal 600 = leitura+escrita só pro dono. Outros usuários nem conseguem ler. Crucial pra arquivos com segredos.</p>
+
+<div class="callout recap">
+  <div class="head">Recapitulando</div>
+  Segredos gerados <strong>localmente no servidor</strong> com entropia criptográfica, gravados em arquivo com permissão restrita, lidos pelo container via <code>env_file:</code> no compose. Nunca trafegam pela rede, nunca vão pro git.
+</div>
+
+<!-- ============= MÓDULO 10 ============= -->
+<h1 class="modulo"><span class="num">10</span>Anatomia de um Dockerfile multi-stage</h1>
+
+<p>Dockerfile é uma receita: cada instrução cria uma camada. <em>Multi-stage</em> significa ter vários <code>FROM</code> num mesmo arquivo — cada um inicia um "estágio" independente, e você pode copiar arquivos entre eles.</p>
+
+<p>Por que isso importa? Porque a imagem final tem que ser pequena. Não queremos enviar o npm cache, devDependencies ou source code TypeScript para produção — só o que <em>roda</em>.</p>
+
+<h2>O Dockerfile completo</h2>
+
+<pre><code><span class="c"># Stage 1: deps</span>
+<span class="k">FROM</span> node:20-alpine <span class="k">AS</span> deps
+<span class="k">WORKDIR</span> /app
+<span class="k">RUN</span> apk add --no-cache libc6-compat openssl
+<span class="k">COPY</span> package.json package-lock.json* ./
+<span class="k">RUN</span> npm ci
+
+<span class="c"># Stage 2: build</span>
+<span class="k">FROM</span> node:20-alpine <span class="k">AS</span> build
+<span class="k">WORKDIR</span> /app
+<span class="k">RUN</span> apk add --no-cache openssl
+<span class="k">COPY</span> --from=deps /app/node_modules ./node_modules
+<span class="k">COPY</span> . .
+<span class="k">RUN</span> npx prisma generate
+<span class="k">RUN</span> npm run build
+
+<span class="c"># Stage 3: runtime</span>
+<span class="k">FROM</span> node:20-alpine <span class="k">AS</span> runtime
+<span class="k">WORKDIR</span> /app
+<span class="k">RUN</span> apk add --no-cache openssl tini
+<span class="k">ENV</span> NODE_ENV=production
+<span class="k">COPY</span> package.json package-lock.json* ./
+<span class="k">RUN</span> npm ci --omit=dev &amp;&amp; npm cache clean --force
+<span class="k">COPY</span> --from=build /app/dist ./dist
+<span class="k">COPY</span> --from=build /app/prisma ./prisma
+<span class="k">COPY</span> --from=build /app/node_modules/.prisma ./node_modules/.prisma
+<span class="k">COPY</span> --from=build /app/node_modules/@prisma ./node_modules/@prisma
+<span class="k">COPY</span> --from=build /app/node_modules/prisma ./node_modules/prisma
+<span class="k">EXPOSE</span> 3000
+<span class="k">ENTRYPOINT</span> [<span class="s">"/sbin/tini"</span>, <span class="s">"--"</span>]
+<span class="k">CMD</span> [<span class="s">"node"</span>, <span class="s">"dist/server.js"</span>]</code></pre>
+
+<h2>Estágio 1: <code>deps</code> — instala TODAS as dependências</h2>
+<p>O estágio <code>deps</code> existe pra que o Docker cache as <code>node_modules</code> separadamente. Como só copiei <code>package.json</code> e <code>package-lock.json</code>, se o código mudar mas as deps não, esse estágio fica cacheado e build é instantâneo.</p>
+<p>O <code>apk add libc6-compat openssl</code> instala libs nativas que algumas dependências Node precisam — Prisma usa OpenSSL para gerar engines.</p>
+
+<h2>Estágio 2: <code>build</code> — compila TypeScript → JavaScript</h2>
+<p>Aqui copio o código todo (<code>COPY . .</code>) e:</p>
+<ul>
+  <li><code>npx prisma generate</code> — gera o cliente Prisma a partir do <code>schema.prisma</code>. Esse cliente é code-generated, então tem que rodar a cada build.</li>
+  <li><code>npm run build</code> — invoca <code>tsc</code>, produzindo <code>dist/</code> com JS plain.</li>
+</ul>
+
+<h2>Estágio 3: <code>runtime</code> — imagem final, magra</h2>
+<p>Note: este estágio começa <em>do zero</em> (<code>FROM node:20-alpine</code>), <strong>não</strong> herda nada dos anteriores. Por quê?</p>
+<ul>
+  <li>Não queremos os arquivos <code>.ts</code>, <code>tsconfig.json</code>, devDependencies.</li>
+  <li>Faço <code>npm ci --omit=dev</code> só com prod deps. Aí copio do estágio <code>build</code> apenas o que preciso:</li>
+</ul>
+
+<table>
+<tr><th>O que copio do build</th><th>Por quê</th></tr>
+<tr><td><code>dist/</code></td><td>O código JS compilado, o que roda em produção.</td></tr>
+<tr><td><code>prisma/</code></td><td>Schemas e migrations. <code>prisma migrate deploy</code> precisa deles.</td></tr>
+<tr><td><code>node_modules/.prisma</code></td><td>Engines compiladas pro alvo Alpine.</td></tr>
+<tr><td><code>node_modules/@prisma</code></td><td>Pacote do cliente Prisma.</td></tr>
+<tr><td><code>node_modules/prisma</code></td><td><strong>O CLI</strong> do Prisma. Esta linha eu adicionei depois — explico no próximo módulo.</td></tr>
+</table>
+
+<h2><code>tini</code> como entrypoint</h2>
+<p><code>tini</code> é um <em>init</em> minimalista. Sem ele, o Node roda como PID 1 dentro do container e não responde direito a SIGTERM (não reapa filhos zumbis). Com tini, sinais funcionam, processos zumbis são limpos, shutdown é gracioso.</p>
+
+<h2>Por que Alpine?</h2>
+<ul>
+  <li>Imagem base de ~5 MB (vs ~80 MB do Debian slim, ~250 MB do Debian completo).</li>
+  <li>Build mais rápido, push pra registry mais rápido, pull em produção mais rápido.</li>
+  <li>Usa <code>musl libc</code> em vez de <code>glibc</code> — daí o <code>libc6-compat</code> no estágio 1 (pra deps que esperam glibc).</li>
+</ul>
+
+<div class="callout gotcha">
+  <div class="head">O bug que apareceu no deploy</div>
+  Eu copiava só <code>.prisma</code> e <code>@prisma</code>, mas <strong>não</strong> o <code>prisma</code> (o CLI). Como o <code>command</code> no compose roda <code>npx prisma migrate deploy</code> no startup, e o CLI tava ausente, o npx tentaria baixar — em rede ruim, falha. <strong>Solução:</strong> linha adicional <code>COPY --from=build /app/node_modules/prisma ./node_modules/prisma</code>. Detalhe sutil que não aparece em tutorial nenhum até você bater.
+</div>
+
+<!-- ============= MÓDULO 11 ============= -->
+<h1 class="modulo"><span class="num">11</span>docker-compose.yml dissecado linha por linha</h1>
+
+<p>Compose é declarativo: você descreve o estado desejado e o Docker se vira pra alcançar. Nosso arquivo final, com comentários:</p>
+
+<pre><code><span class="k">services:</span>
+  <span class="k">postgres:</span>
+    <span class="k">image:</span> postgres:16-alpine
+    <span class="k">container_name:</span> qnf-postgres
+    <span class="k">restart:</span> unless-stopped
+    <span class="k">environment:</span>
+      POSTGRES_USER: qnf_user
+      POSTGRES_PASSWORD: qnf_pass
+      POSTGRES_DB: qnf_db
+    <span class="k">ports:</span>
+      - <span class="s">"127.0.0.1:5432:5432"</span>
+    <span class="k">volumes:</span>
+      - qnf_pgdata:/var/lib/postgresql/data
+    <span class="k">healthcheck:</span>
+      test: [<span class="s">"CMD-SHELL"</span>, <span class="s">"pg_isready -U qnf_user -d qnf_db"</span>]
+      interval: 5s
+      timeout: 5s
+      retries: 10</code></pre>
+
+<h2>Atributos importantes</h2>
+
+<table>
+<tr><th>Atributo</th><th>Função</th></tr>
+<tr><td><code>image</code></td><td>Imagem oficial do Postgres na variante Alpine, versão 16.</td></tr>
+<tr><td><code>container_name</code></td><td>Nome fixo (em vez do default <code>projeto_servico_1</code>). Útil pra logs e scripts.</td></tr>
+<tr><td><code>restart: unless-stopped</code></td><td>Se o container cair, sobe sozinho. Não sobe se você parou manualmente. Mata 90% dos "deu falha de madrugada".</td></tr>
+<tr><td><code>environment</code></td><td>Variáveis lidas pelo entrypoint do Postgres pra criar usuário/banco no primeiro start.</td></tr>
+<tr><td><code>ports: 127.0.0.1:5432:5432</code></td><td>Bind <strong>apenas em loopback</strong>. Nem o iptables vai ver tráfego externo pra 5432.</td></tr>
+<tr><td><code>volumes: qnf_pgdata:/var/lib/postgresql/data</code></td><td>Persistência! Sem isso, dados somem ao recriar o container. <code>qnf_pgdata</code> é um named volume gerenciado pelo Docker.</td></tr>
+<tr><td><code>healthcheck</code></td><td>Testa periodicamente se o serviço está pronto. <code>pg_isready</code> retorna 0 quando o Postgres aceita conexões.</td></tr>
+</table>
+
+<h2>O serviço backend</h2>
+
+<pre><code>  <span class="k">backend:</span>
+    <span class="k">build:</span>
+      context: .
+      dockerfile: Dockerfile
+    <span class="k">container_name:</span> qnf-backend
+    <span class="k">restart:</span> unless-stopped
+    <span class="k">depends_on:</span>
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    <span class="k">env_file:</span>
+      - .env
+    <span class="k">environment:</span>
+      DATABASE_URL: postgresql://qnf_user:qnf_pass@postgres:5432/qnf_db?schema=public
+      REDIS_URL: redis://redis:6379
+    <span class="k">ports:</span>
+      - <span class="s">"3000:3000"</span>
+    <span class="k">command:</span> [<span class="s">"sh"</span>, <span class="s">"-c"</span>, <span class="s">"npx prisma migrate deploy &amp;&amp; node dist/server.js"</span>]</code></pre>
+
+<h2>Pontos sutis</h2>
+
+<h3><code>depends_on</code> com <code>condition</code></h3>
+<p>A versão antiga do compose só esperava o <em>start</em> dos serviços, não a <em>saúde</em>. A nova permite "service_healthy" — o backend só sobe depois que postgres e redis passaram no healthcheck. Sem isso, o backend tentaria abrir conexão antes do Postgres aceitar e crashava.</p>
+
+<h3><code>env_file</code> vs <code>environment</code></h3>
+<p>Os dois coexistem. As variáveis em <code>environment</code> têm <strong>prioridade</strong> e sobrescrevem o <code>.env</code>. Por isso o <code>DATABASE_URL</code> no compose usa o hostname <code>postgres</code> (resolvido pela rede Docker) em vez de localhost — mesmo que o <code>.env</code> tenha outro valor pra dev local, em produção o compose vence.</p>
+
+<h3><code>command</code> sobrescrevendo o <code>CMD</code></h3>
+<p>O Dockerfile termina com <code>CMD ["node", "dist/server.js"]</code>. O compose substitui isso por <code>sh -c "npx prisma migrate deploy &amp;&amp; node dist/server.js"</code> — antes de subir o servidor, aplica migrations. Padrão muito comum.</p>
+
+<h2>Volumes nomeados</h2>
+
+<pre><code><span class="k">volumes:</span>
+  qnf_pgdata:
+  qnf_redisdata:</code></pre>
+
+<p>Declarar aqui no nível raiz <em>cria</em> os volumes. O Docker gerencia onde eles vivem no host (<code>/var/lib/docker/volumes/...</code>). A vantagem sobre bind mounts (<code>./data:/var/lib/...</code>) é portabilidade — funciona igual em qualquer host, sem se preocupar com permissões de pasta.</p>
+
+<div class="callout warn">
+  <div class="head">Backup desses volumes</div>
+  Esse é o conteúdo crítico do sistema. Pra fazer backup: <br>
+  <code>docker run --rm -v qnf_pgdata:/data -v $(pwd):/backup alpine tar czf /backup/pgdata.tgz /data</code><br>
+  Roda um container temporário, monta o volume e o pwd atual, e empacota tudo.
+</div>
+
+<!-- ============= MÓDULO 12 ============= -->
+<h1 class="modulo"><span class="num">12</span>Migrations de banco no startup do container</h1>
+
+<p>O Prisma usa um workflow declarativo: você modifica o <code>schema.prisma</code>, gera uma migration com <code>prisma migrate dev</code> em desenvolvimento (cria arquivo SQL versionado), commita o arquivo, e em produção <strong>aplica</strong> a migration com <code>prisma migrate deploy</code>.</p>
+
+<h2>Por que rodar no startup?</h2>
+<p>Existem duas escolas:</p>
+<ol>
+  <li><strong>Migration como job separado</strong> antes do deploy. Mais seguro: se a migration falhar, o app antigo continua rodando.</li>
+  <li><strong>Migration no startup do container</strong>. Mais simples: deploy é "atomic" — sobe junto. Apropriado para projetos pequenos como o nosso.</li>
+</ol>
+
+<p>Adotei a 2ª: <code>command: ["sh", "-c", "npx prisma migrate deploy &amp;&amp; node dist/server.js"]</code>.</p>
+
+<h2>O que aconteceu na primeira execução</h2>
+
+<pre><code>Prisma schema loaded from prisma/schema.prisma
+Datasource <span class="s">"db"</span>: PostgreSQL database <span class="s">"qnf_db"</span>...
+1 migration found in prisma/migrations
+Applying migration <span class="s">`20260512161947_init`</span>
+The following migration(s) have been applied:
+migrations/
+  └─ 20260512161947_init/
+    └─ migration.sql
+All migrations have been successfully applied.
+Server listening at http://0.0.0.0:3000</code></pre>
+
+<p>Migration aplicada, depois o servidor sobe. Perfeito.</p>
+
+<h2>A race condition com o worker</h2>
+<p>O worker também conecta no Postgres. Como ele e o backend sobem em paralelo (ambos esperam só os healthchecks de DB e Redis, não <em>um do outro</em>), o worker tentou ler a tabela <code>ConnectedAccount</code> antes do backend rodar a migration. Resultado nos logs:</p>
+
+<pre><code>code: <span class="s">'P2021'</span>,
+clientVersion: <span class="s">'5.22.0'</span>,
+meta: { modelName: <span class="s">'ConnectedAccount'</span>, table: <span class="s">'public.ConnectedAccount'</span> }
+Node.js v20.20.2</code></pre>
+
+<p>P2021 = "the table does not exist in the current database". O processo Node saiu.</p>
+
+<p>O salvador foi o <code>restart: unless-stopped</code>: o container caiu, o Docker o reanimou automaticamente segundos depois. Aí a migration já havia rodado, a tabela existia, e o worker rodou normal:</p>
+
+<pre><code>Pluggy sync worker ready
+Enqueued Pluggy sync jobs, count: 0</code></pre>
+
+<div class="callout info">
+  <div class="head">A maneira "elegante" de resolver</div>
+  Em vez de depender do restart, dá pra ter um serviço dedicado de migration que sobe primeiro, ou um <code>command</code> no worker que aguarde a tabela existir (com retry loop). Pra um projeto pequeno, restart policy é trade-off aceitável.
+</div>
+
+<!-- ============= MÓDULO 13 ============= -->
+<h1 class="modulo"><span class="num">13</span>Os bugs TypeScript que apareceram (e o que aprender com eles)</h1>
+
+<p>Ao tentar o primeiro <code>docker compose build</code>, o estágio <code>build</code> falhou com 4 erros distintos do TypeScript. Vale entender cada um — são padrões que aparecem em qualquer projeto sério.</p>
+
+<h2>Erro 1: <code>rootDir</code> versus <code>include</code></h2>
+
+<pre><code>error TS6059: File <span class="s">'/app/prisma/seed.ts'</span> is not under <span class="s">'rootDir'</span> <span class="s">'/app/src'</span>.</code></pre>
+
+<p>O <code>tsconfig.json</code> tinha:</p>
+
+<pre><code>{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [<span class="s">"src/**/*"</span>, <span class="s">"prisma/**/*"</span>]
+}</code></pre>
+
+<h3>Por que dá erro</h3>
+<p><code>rootDir</code> diz onde fica a raiz dos arquivos fonte; o TS usa pra calcular a estrutura de pastas em <code>outDir</code>. Se você incluir um arquivo <em>fora</em> do rootDir, ele não sabe pra onde gerar — daria conflito de paths.</p>
+
+<h3>A correção</h3>
+<p>Removi <code>prisma/**/*</code> do <code>include</code>. O arquivo <code>prisma/seed.ts</code> é executado direto via <code>tsx prisma/seed.ts</code> (em dev) ou <code>prisma db seed</code> — não precisa ser compilado para JS.</p>
+
+<div class="callout tip">
+  <div class="head">Heurística</div>
+  Se um arquivo TS só roda via <code>tsx</code> ou <code>ts-node</code>, não inclua no build. Se vai compilar pra JS estático, inclua e mantenha dentro do <code>rootDir</code>.
+</div>
+
+<h2>Erro 2: Generic explícito do Fastify quebrando o typeProvider</h2>
+
+<pre><code>error TS2322: Type <span class="s">'FastifyInstance&lt;Server, ..., Logger&gt;'</span>
+is not assignable to type <span class="s">'FastifyInstance&lt;..., FastifyBaseLogger&gt;'</span>.</code></pre>
+
+<p>O código fazia:</p>
+<pre><code><span class="k">import</span> Fastify, { FastifyInstance } <span class="k">from</span> <span class="s">"fastify"</span>;
+<span class="k">export async function</span> buildApp(): <span class="v">Promise</span>&lt;FastifyInstance&gt; { ... }</code></pre>
+
+<h3>Por que dá erro</h3>
+<p>Quando você passa <code>logger: pinoInstance</code> ao Fastify, ele <em>infere</em> um tipo mais específico (<code>Logger&lt;...&gt;</code> do pino) em vez do genérico <code>FastifyBaseLogger</code>. Aí o tipo retornado pelo Fastify não casa exatamente com <code>FastifyInstance</code> genérico declarado no return type — os generics são <em>invariant</em> em TypeScript.</p>
+
+<h3>A correção</h3>
+<p>Removi a anotação explícita de return type. TypeScript infere o tipo correto sozinho.</p>
+
+<pre><code><span class="k">import</span> Fastify <span class="k">from</span> <span class="s">"fastify"</span>;
+<span class="k">export async function</span> buildApp() { ... }</code></pre>
+
+<div class="callout info">
+  <div class="head">Princípio</div>
+  Não anote tipos que o TS pode inferir. Anotações explícitas são úteis em APIs públicas (assinaturas de funções exportadas que outros consomem) mas viram dor de cabeça quando libs evoluem os tipos.
+</div>
+
+<h2>Erro 3: <code>Prisma.InputJsonValue</code> em vez de <code>Record</code></h2>
+
+<pre><code>error TS2322: Type <span class="s">'Record&lt;string, unknown&gt;'</span> is not assignable to type
+<span class="s">'NullableJsonNullValueInput | InputJsonValue | undefined'</span>.</code></pre>
+
+<p>Tínhamos em dois lugares:</p>
+<pre><code>responseData: response <span class="k">as unknown as</span> <span class="v">Record</span>&lt;string, unknown&gt;,</code></pre>
+
+<h3>Por que dá erro</h3>
+<p>Prisma tem um tipo específico (<code>Prisma.InputJsonValue</code>) que aceita strings, números, booleans, null, arrays e objetos JSON-serializáveis — recursivo. <code>Record&lt;string, unknown&gt;</code> é mais permissivo (aceita Date, função, símbolo...) e portanto não satisfaz o tipo Prisma.</p>
+
+<h3>A correção</h3>
+<pre><code><span class="k">import</span> { Prisma } <span class="k">from</span> <span class="s">"@prisma/client"</span>;
+...
+responseData: response <span class="k">as unknown as</span> Prisma.InputJsonValue,</code></pre>
+
+<div class="callout gotcha">
+  <div class="head">Generators e tipos</div>
+  O Prisma <strong>gera</strong> seus tipos a partir do <code>schema.prisma</code>. Quando o schema muda, rode <code>npx prisma generate</code> pra atualizar. Erros de tipo "absurdos" depois de mexer no schema geralmente são generator desatualizado.
+</div>
+
+<h2>Erro 4: <code>noUnusedParameters</code> e o <code>_</code></h2>
+
+<pre><code>error TS6133: <span class="s">'userId'</span> is declared but its value is never read.</code></pre>
+
+<p>O método <code>resolveCategoryId(userId, ptx, ...)</code> recebia <code>userId</code> mas não usava. O <code>tsconfig</code> tem <code>"noUnusedParameters": true</code>, que reclama de parâmetros não-utilizados.</p>
+
+<h3>A correção</h3>
+<p>Renomeei pra <code>_userId</code>. O TS, por convenção, ignora parâmetros começando com underscore — sinaliza que o autor sabe que não usa, mas o parâmetro precisa estar ali (talvez por implementar uma interface, ou compatibilidade futura).</p>
+
+<pre><code>private async resolveCategoryId(
+  _userId: string,    <span class="c">// foi userId</span>
+  ptx: PluggyTransaction,
+  ...
+) { ... }</code></pre>
+
+<div class="callout recap">
+  <div class="head">Os 4 erros, sintetizados</div>
+  <strong>1.</strong> Não inclua no build TS arquivos fora do rootDir.<br>
+  <strong>2.</strong> Não anote tipos quando inferência funciona melhor.<br>
+  <strong>3.</strong> Use os tipos específicos da lib (Prisma, Fastify, etc.) em vez de <code>Record</code>/<code>any</code>.<br>
+  <strong>4.</strong> Use <code>_</code> pra silenciar parâmetros conscientemente ignorados.
+</div>
+
+<!-- ============= MÓDULO 14 ============= -->
+<h1 class="modulo"><span class="num">14</span>Frontend Expo apontando para o backend remoto</h1>
+
+<p>O app é React Native + Expo. Em desenvolvimento, o app no celular se conecta à API através de uma URL definida em variável de ambiente. Antes do nosso deploy, essa URL era <code>http://192.168.x.x:3000</code> (IP local do PC). Agora vira <code>http://136.248.95.162:3000/api/v1</code> — o IP público da VM Oracle.</p>
+
+<h2>Como Expo lê variáveis em build time</h2>
+
+<p>O Expo carrega variáveis via <code>app.config.js</code>:</p>
+
+<pre><code><span class="k">function</span> loadLocalEnvFile() {
+  <span class="k">const</span> envPath = path.join(__dirname, <span class="s">'.env.local'</span>);
+  <span class="k">if</span> (!fs.existsSync(envPath)) <span class="k">return</span>;
+  <span class="k">const</span> lines = fs.readFileSync(envPath, <span class="s">'utf8'</span>).split(/\r?\n/);
+  <span class="k">for</span> (<span class="k">const</span> line <span class="k">of</span> lines) {
+    <span class="c">// parse KEY=VALUE</span>
+    process.env[key] = value;
+  }
+}
+loadLocalEnvFile();
+
+<span class="k">module</span>.exports = {
+  expo: {
+    extra: {
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_URL,
+      appVariant: variant
+    }
+  }
+};</code></pre>
+
+<h2>O <code>.env.local</code> que escrevi</h2>
+
+<pre><code>APP_VARIANT=development
+EXPO_PUBLIC_API_URL=http://136.248.95.162:3000/api/v1</code></pre>
+
+<table>
+<tr><th>Variável</th><th>Função</th></tr>
+<tr><td><code>APP_VARIANT=development</code></td><td>Faz o <code>app.config.js</code> usar o bundle ID <code>app.quasenada.financas.dev</code> e ativar <code>NSAllowsArbitraryLoads</code> (permite HTTP no iOS).</td></tr>
+<tr><td><code>EXPO_PUBLIC_API_URL</code></td><td>URL absoluta da API. O prefixo <code>EXPO_PUBLIC_</code> é convenção do Expo — vars com esse prefixo são inclusas no bundle JS final (em vez de só estarem em build time).</td></tr>
+</table>
+
+<h2>Por que <code>NSAllowsArbitraryLoads</code> é necessário</h2>
+<p>Desde iOS 9, o App Transport Security (ATS) bloqueia conexões HTTP (não-HTTPS) por padrão. Pra dev contra um backend sem certificado, precisamos permitir. No <code>app.config.js</code>:</p>
+
+<pre><code>infoPlist: {
+  ...(isDevelopment ? {
+    NSAppTransportSecurity: {
+      NSAllowsArbitraryLoads: true,
+      NSAllowsLocalNetworking: true
+    }
+  } : {})
+}</code></pre>
+
+<p>Só aplicado quando <code>APP_VARIANT=development</code>. Em produção (preview/release), HTTPS é obrigatório.</p>
+
+<div class="callout warn">
+  <div class="head">Em produção isso vira HTTPS</div>
+  Antes de empacotar uma versão real pra App Store, precisa colocar Caddy/Nginx + Let's Encrypt na frente do backend, e mudar a URL pra <code>https://api.quasenada.app/api/v1</code>. Sem isso, ATS bloqueia tudo silenciosamente no iOS.
+</div>
+
+<h2>Iniciando o Metro</h2>
+
+<pre><code><span class="k">cd</span> projetos\quase-nada-financas\frontend
+npm install
+npm run start:dev-client:tunnel</code></pre>
+
+<h3>O que cada flag significa</h3>
+
+<table>
+<tr><th>Flag</th><th>Para que serve</th></tr>
+<tr><td><code>--dev-client</code></td><td>Conecta a um <strong>development build</strong> do app (gerado via EAS). Necessário porque usamos libs nativas (expo-secure-store, expo-local-authentication, pluggy-connect) que não rodam no Expo Go.</td></tr>
+<tr><td><code>--tunnel</code></td><td>Cria um túnel ngrok-style: o Metro vira acessível de qualquer lugar, não só na sua rede local. Útil quando o backend tá em outro lugar (como agora).</td></tr>
+</table>
+
+<h2>Topologia de dev neste cenário</h2>
+
+<div class="diagram">
+  PC (Metro)              Expo Tunnel              Celular
+   |                         |                       |
+   | -- bundle JS via --> ngrok -- via internet ---> |
+   |                                                 |
+                                                     |
+                              http://136.248.95.162:3000
+                                       ^
+                                       |
+                              VM Oracle Cloud
+                              (backend rodando)
+</div>
+
+<p>Repare: o tunnel é só pra <strong>servir o JS bundle</strong>. O JS executando no celular fala <strong>direto</strong> com o backend Oracle. Não há proxy no meio das chamadas de API — o que torna o desenvolvimento muito próximo de produção.</p>
+
+<!-- ============= MÓDULO 15 ============= -->
+<h1 class="modulo"><span class="num">15</span>Operação no dia a dia: comandos de manutenção</h1>
+
+<p>Cheat sheet pra ter ao lado.</p>
+
+<h2>Conectar e navegar</h2>
+<pre><code><span class="v">ssh</span> -i <span class="s">"C:\Users\vinim\.ssh\private_oracle_quase_nada_server2.key"</span> ubuntu@136.248.95.162
+<span class="k">cd</span> /home/ubuntu/quase-nada-financas/backend</code></pre>
+
+<h2>Status dos containers</h2>
+<pre><code><span class="v">sudo</span> docker compose ps
+<span class="v">sudo</span> docker stats --no-stream     <span class="c"># CPU, RAM, I/O em tempo real</span></code></pre>
+
+<h2>Logs</h2>
+<pre><code><span class="v">sudo</span> docker compose logs -f backend       <span class="c"># segue logs do API</span>
+<span class="v">sudo</span> docker compose logs -f worker        <span class="c"># segue logs do worker</span>
+<span class="v">sudo</span> docker compose logs --tail=200 backend</code></pre>
+
+<h2>Mudou o <code>.env</code> (ex: pôs Pluggy real)</h2>
+<pre><code><span class="v">nano</span> .env                                  <span class="c"># edita</span>
+<span class="v">sudo</span> docker compose restart backend worker
+<span class="v">curl</span> 127.0.0.1:3000/health</code></pre>
+
+<h2>Atualizar código (sincronizar do PC)</h2>
+<pre><code><span class="c"># No PC, na pasta backend:</span>
+<span class="v">tar</span> --exclude=node_modules --exclude=dist -czf - . \
+  | <span class="v">ssh</span> -i <span class="s">"...key"</span> ubuntu@136.248.95.162 \
+    <span class="s">"tar -xzf - -C /home/ubuntu/quase-nada-financas/backend"</span>
+
+<span class="c"># Na VM:</span>
+<span class="v">sudo</span> docker compose build
+<span class="v">sudo</span> docker compose up -d</code></pre>
+
+<h2>Rebuild completo (reset hard)</h2>
+<pre><code><span class="v">sudo</span> docker compose down
+<span class="v">sudo</span> docker compose up -d --build --remove-orphans</code></pre>
+
+<h2>Investigar o banco diretamente</h2>
+<pre><code><span class="v">sudo</span> docker exec -it qnf-postgres psql -U qnf_user -d qnf_db
+<span class="c"># Já dentro do psql:</span>
+\dt                       <span class="c"># lista tabelas</span>
+\d <span class="s">"User"</span>               <span class="c"># descreve a tabela User</span>
+<span class="k">SELECT</span> COUNT(*) <span class="k">FROM</span> <span class="s">"User"</span>;
+\q                        <span class="c"># sai</span></code></pre>
+
+<h2>Limpar imagens órfãs (libera disco)</h2>
+<pre><code><span class="v">sudo</span> docker system prune -af --volumes</code></pre>
+
+<div class="callout warn">
+  <div class="head">Cuidado com <code>--volumes</code></div>
+  Sem <code>--volumes</code> o prune é seguro (só remove imagens e containers parados). Com <code>--volumes</code> ele apaga volumes não referenciados — pode comer dados. Só rode <code>--volumes</code> se souber exatamente o que tá fazendo.
+</div>
+
+<h2>Backup do Postgres</h2>
+<pre><code><span class="c"># dump SQL</span>
+<span class="v">sudo</span> docker exec qnf-postgres pg_dump -U qnf_user qnf_db &gt; backup_$(date +%F).sql
+
+<span class="c"># dump binário (mais eficiente, melhor pra restore parcial)</span>
+<span class="v">sudo</span> docker exec qnf-postgres pg_dump -U qnf_user -F c qnf_db &gt; backup_$(date +%F).dump</code></pre>
+
+<!-- ============= MÓDULO 16 ============= -->
+<h1 class="modulo"><span class="num">16</span>O que falta para chamar de "produção de verdade"</h1>
+
+<p>O que temos é "produção funcional" mas ainda não "produção robusta". Lista priorizada:</p>
+
+<h2>1. HTTPS (urgente antes de submeter pra App Store)</h2>
+<p>Botar um reverse proxy (Caddy ou Nginx) na frente do backend, com certificado Let's Encrypt automático.</p>
+<p><strong>Caddy</strong> é o caminho mais curto — ele faz HTTPS automático com 3 linhas de config:</p>
+
+<pre><code>api.quasenada.app {
+    reverse_proxy localhost:3000
+}</code></pre>
+
+<p>Requer:</p>
+<ul>
+  <li>Domínio próprio com registro A apontando pro IP da VM.</li>
+  <li>Abrir 80 e 443 (iptables + Security List).</li>
+  <li>Fechar 3000 externamente — só o Caddy precisa enxergar.</li>
+</ul>
+
+<h2>2. Backup automatizado do volume Postgres</h2>
+<p>Cron diário fazendo <code>pg_dump</code> e enviando pra Object Storage da Oracle (gratuito até 10 GB).</p>
+
+<h2>3. Monitoramento de uptime</h2>
+<p>Uptime Kuma em outro container, pingando <code>/health</code> a cada 60s. Envia alerta no Telegram/Email se cair.</p>
+
+<h2>4. Logs centralizados</h2>
+<p>Hoje os logs ficam dentro de cada container. Pra debug de problemas pretéritos, vale agregar — Loki + Grafana (ou só <code>logrotate</code> com retenção).</p>
+
+<h2>5. Pipeline CI/CD</h2>
+<p>Push para <code>main</code> dispara: <code>npm test</code> → <code>docker build</code> → push pra GitHub Container Registry → SSH na VM → <code>docker pull</code> + <code>up -d</code>. O <code>DEPLOY.md</code> do projeto já esboça isso.</p>
+
+<h2>6. Hardening do SSH</h2>
+<ul>
+  <li>Mudar porta padrão (22 → 4022 por exemplo) — reduz ruído de bots.</li>
+  <li>Instalar <code>fail2ban</code> — banimento automático de IPs que tentam força bruta.</li>
+  <li>Manter <code>PasswordAuthentication no</code> no <code>/etc/ssh/sshd_config</code>.</li>
+</ul>
+
+<h2>7. Rate limiting decente no Fastify</h2>
+<p>O <code>.env</code> tem <code>LOGIN_RATE_LIMIT_MAX</code> e <code>ORDER_RATE_LIMIT_MAX</code> — verifique se estão sendo aplicados no código. Plugin <code>@fastify/rate-limit</code> resolve elegantemente.</p>
+
+<h2>8. Substituir credenciais Pluggy placeholder</h2>
+<p>Hoje estão como <code>replace-with-real-pluggy-client-id</code>. Quando obtidas no dashboard da Pluggy, edite o <code>.env</code> e restart os containers.</p>
+
+<div class="callout recap">
+  <div class="head">Mantra</div>
+  Cada item da lista de "produção de verdade" é fácil isoladamente, mas precisa fazer um por um. Resista à vontade de "implementar tudo agora" — vai cansar e nada fica bem feito. Faça por prioridade: HTTPS, backup, monitoramento. Aí dorme tranquilo.
+</div>
+
+<!-- ============= APÊNDICE A ============= -->
+<h1 class="modulo"><span class="num">A</span>Apêndice — Comandos de referência rápida</h1>
+
+<h2>Sistema</h2>
+<pre><code><span class="v">uname</span> -a                  <span class="c"># kernel + arquitetura</span>
+<span class="v">lsb_release</span> -a            <span class="c"># distro</span>
+<span class="v">free</span> -h                   <span class="c"># memória</span>
+<span class="v">df</span> -h                     <span class="c"># disco</span>
+<span class="v">top</span> | <span class="v">htop</span>               <span class="c"># processos em tempo real</span>
+<span class="v">journalctl</span> -u docker -f  <span class="c"># logs do daemon Docker</span></code></pre>
+
+<h2>Rede e firewall</h2>
+<pre><code><span class="v">ip</span> addr show              <span class="c"># IPs das interfaces</span>
+<span class="v">ss</span> -tlnp                  <span class="c"># portas TCP escutando</span>
+<span class="v">sudo</span> iptables -L INPUT -n --line-numbers
+<span class="v">sudo</span> iptables -I INPUT N -p tcp --dport PORTA -j ACCEPT
+<span class="v">sudo</span> netfilter-persistent save
+<span class="v">curl</span> -v http://IP:PORTA/health</code></pre>
+
+<h2>Swap</h2>
+<pre><code><span class="v">sudo</span> fallocate -l 2G /swapfile
+<span class="v">sudo</span> chmod 600 /swapfile
+<span class="v">sudo</span> mkswap /swapfile
+<span class="v">sudo</span> swapon /swapfile
+<span class="v">swapon</span> --show              <span class="c"># conferir</span></code></pre>
+
+<h2>Docker</h2>
+<pre><code><span class="v">docker</span> ps                                  <span class="c"># containers rodando</span>
+<span class="v">docker</span> ps -a                               <span class="c"># inclui parados</span>
+<span class="v">docker</span> images                              <span class="c"># imagens locais</span>
+<span class="v">docker</span> compose up -d                       <span class="c"># sobe em background</span>
+<span class="v">docker</span> compose down                        <span class="c"># derruba (mantém volumes)</span>
+<span class="v">docker</span> compose down -v                     <span class="c"># derruba E apaga volumes!</span>
+<span class="v">docker</span> compose logs -f SERV               <span class="c"># tail de logs</span>
+<span class="v">docker</span> exec -it CONTAINER sh              <span class="c"># shell dentro do container</span>
+<span class="v">docker</span> stats                               <span class="c"># CPU/mem em tempo real</span>
+<span class="v">docker</span> system prune -af                    <span class="c"># limpa lixo</span></code></pre>
+
+<h2>Postgres dentro do container</h2>
+<pre><code><span class="v">docker</span> exec -it qnf-postgres psql -U qnf_user -d qnf_db
+<span class="c"># Comandos psql úteis:</span>
+\l            <span class="c"># lista databases</span>
+\dt           <span class="c"># lista tabelas</span>
+\d nome       <span class="c"># descreve tabela</span>
+\du           <span class="c"># lista usuários</span>
+\q            <span class="c"># sai</span></code></pre>
+
+<h2>Prisma</h2>
+<pre><code>npx prisma generate          <span class="c"># gera o client</span>
+npx prisma migrate dev       <span class="c"># cria migration (DEV)</span>
+npx prisma migrate deploy    <span class="c"># aplica migrations (PROD)</span>
+npx prisma studio            <span class="c"># GUI web pra explorar o banco</span></code></pre>
+
+<h2>Expo / Metro</h2>
+<pre><code>npm install                          <span class="c"># instala deps</span>
+npm run start:dev-client:tunnel      <span class="c"># Metro com tunnel</span>
+npx expo start --dev-client          <span class="c"># Metro local (mesma rede)</span>
+eas build --profile development --platform ios   <span class="c"># gera dev client iOS</span></code></pre>
+
+<!-- ============= APÊNDICE B ============= -->
+<h1 class="modulo"><span class="num">B</span>Apêndice — Glossário</h1>
+
+<table>
+<tr><th>Termo</th><th>Significado</th></tr>
+<tr><td><strong>VCN</strong></td><td>Virtual Cloud Network — rede virtual da Oracle Cloud, equivalente ao VPC da AWS.</td></tr>
+<tr><td><strong>Security List</strong></td><td>Conjunto de regras de firewall no nível do VCN. Aplica-se ao tráfego antes mesmo de chegar na VM.</td></tr>
+<tr><td><strong>Ingress / Egress</strong></td><td>Tráfego entrando (ingress) ou saindo (egress) da rede.</td></tr>
+<tr><td><strong>CIDR</strong></td><td>Classless Inter-Domain Routing — notação <code>IP/máscara</code>. <code>0.0.0.0/0</code> = qualquer IP. <code>192.168.1.0/24</code> = a rede 192.168.1.x.</td></tr>
+<tr><td><strong>iptables</strong></td><td>Frontend tradicional para o netfilter (firewall) do kernel Linux. Substituído gradualmente por nftables.</td></tr>
+<tr><td><strong>chain INPUT</strong></td><td>Conjunto de regras avaliadas para pacotes destinados ao próprio host. Existem também FORWARD (rotear) e OUTPUT (sair).</td></tr>
+<tr><td><strong>OOM killer</strong></td><td>Out Of Memory killer — mecanismo do kernel que mata processos quando a RAM acaba.</td></tr>
+<tr><td><strong>swap</strong></td><td>Memória virtual em disco. Estende a RAM com altíssimo custo de latência.</td></tr>
+<tr><td><strong>swappiness</strong></td><td>Parâmetro kernel (0–100) que controla quão "agressivamente" o kernel move páginas pra swap. Default 60.</td></tr>
+<tr><td><strong>healthcheck</strong></td><td>Comando que o Docker executa periodicamente para saber se um container está "saudável". Outros serviços podem esperar isso (depends_on).</td></tr>
+<tr><td><strong>multi-stage build</strong></td><td>Padrão Dockerfile com vários <code>FROM</code>; estágio final copia só o necessário dos anteriores, resultando em imagem menor.</td></tr>
+<tr><td><strong>BullMQ</strong></td><td>Biblioteca Node para filas de jobs em background, usando Redis como backend. Sucessora do Bull.</td></tr>
+<tr><td><strong>Prisma</strong></td><td>ORM TypeScript-first com schema declarativo, migrations versionadas e client tipado gerado automaticamente.</td></tr>
+<tr><td><strong>Fastify</strong></td><td>Framework HTTP Node.js focado em performance e DX. Alternativa moderna ao Express.</td></tr>
+<tr><td><strong>JWT</strong></td><td>JSON Web Token — formato de token autenticável (assinado) usado em APIs stateless.</td></tr>
+<tr><td><strong>Access / Refresh token</strong></td><td>Padrão de autenticação: access token de curta duração para chamadas; refresh de longa duração para renovar o access sem login.</td></tr>
+<tr><td><strong>Pluggy</strong></td><td>Provider open finance brasileiro. API que conecta contas bancárias e devolve transações categorizadas.</td></tr>
+<tr><td><strong>EAS Build</strong></td><td>Expo Application Services — build de apps nativos na nuvem da Expo. Substitui ter Xcode/Android Studio local.</td></tr>
+<tr><td><strong>Expo Dev Client</strong></td><td>Versão custom do Expo Go que inclui suas dependências nativas. Necessário quando você usa libs além do Expo SDK base.</td></tr>
+<tr><td><strong>Heredoc</strong></td><td>Construção shell <code>&lt;&lt;EOF ... EOF</code> que trata o conteúdo entre os delimitadores como input do comando.</td></tr>
+<tr><td><strong>tini</strong></td><td>Init system minimalista. Roda como PID 1 em containers pra lidar com sinais e processos zumbis.</td></tr>
+<tr><td><strong>Alpine</strong></td><td>Distribuição Linux super-leve baseada em musl libc e BusyBox. Imagem Docker de ~5 MB.</td></tr>
+<tr><td><strong>UFW</strong></td><td>Uncomplicated Firewall — wrapper amigável em cima de iptables. Comum no Ubuntu desktop.</td></tr>
+<tr><td><strong>OCI</strong></td><td>Oracle Cloud Infrastructure — o nome formal da cloud da Oracle.</td></tr>
+</table>
+
+<p style="margin-top:15mm; text-align:center; color:#64748b; font-size:10pt">
+— Fim da aula —<br>
+Quase Nada Software House · 2026
+</p>
+
+</body>
+</html>
