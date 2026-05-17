@@ -3,26 +3,46 @@ export type LoginRequest = { email: string; password: string };
 export type RegisterRequest = { email: string; password: string };
 export type LoginResponse = { accessToken: string; refreshToken: string; user: User };
 export type RegisterResponse = LoginResponse;
+export type BankAccount = {
+  id: string;
+  connectedAccountId: string;
+  externalId: string;
+  type: 'BANK' | 'CREDIT' | string;
+  balance: number;
+  currency: 'BRL';
+  lastSyncAt: string | null;
+};
 export type Account = {
   id: string;
   bankName: string;
-  type: string;
-  balance: number;
-  currency: 'BRL';
-  lastSyncedAt: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  type?: string;
+  balance?: number;
+  currency?: 'BRL';
+  lastSyncedAt?: string | null;
+  status?: string;
+  bankAccounts?: BankAccount[];
 };
 export type Transaction = {
   id: string;
-  accountId: string;
-  accountName: string | null;
-  date: string;
+  accountId?: string;
+  accountName?: string | null;
+  accountLogoUrl?: string | null;
+  occurredAt: string;
   description: string;
+  originalDescription?: string;
+  alias?: string | null;
   amount: number;
-  currency: 'BRL';
-  categoryId: string | null;
-  categoryName: string | null;
-  categoryIcon: string | null;
-  pending: boolean;
+  currency?: 'BRL';
+  merchantName?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  categoryIcon?: string | null;
+  categoryColor?: string | null;
+  // null = decisão automática; true = forçar assinatura; false = forçar fora
+  isSubscriptionOverride?: boolean | null;
+  pending?: boolean;
 };
 export type Category = { id: string; name: string; icon: string | null; color: string | null };
 export type Dashboard = {

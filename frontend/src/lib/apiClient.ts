@@ -33,12 +33,16 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   return config;
 });
 
+const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|refresh|biometric-challenge)/;
+
 apiClient.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (error.response?.status === 401 && original && !original._retry && !original.url?.includes('/auth/refresh')) {
+    const isAuthEndpoint = original?.url ? AUTH_ENDPOINT_PATTERN.test(original.url) : false;
+
+    if (error.response?.status === 401 && original && !original._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           queue.push({ resolve, reject });

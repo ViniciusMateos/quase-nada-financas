@@ -3,7 +3,13 @@ import { normalizeError } from '@/lib/errorMap';
 import { transactionsService } from '@/services/transactions.service';
 import type { Transaction } from '@/types/api.types';
 
-export type TransactionFilters = { accountId?: string; categoryId?: string; startDate?: string; endDate?: string };
+export type TransactionFilters = {
+  accountId?: string;
+  accountType?: 'BANK' | 'CREDIT';
+  categoryId?: string;
+  startDate?: string;
+  endDate?: string;
+};
 
 export function useTransactions(initialFilters: TransactionFilters = {}) {
   const [items, setItems] = useState<Transaction[]>([]);

@@ -1,39 +1,38 @@
-import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/theme/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import DashboardScreen from '@/screens/DashboardScreen';
+import AccountsScreen from '@/screens/AccountsScreen';
+import TransactionsScreen from '@/screens/TransactionsScreen';
+import CategoriesScreen from '@/screens/CategoriesScreen';
+import SubscriptionsScreen from '@/screens/SubscriptionsScreen';
+import InstallmentsScreen from '@/screens/InstallmentsScreen';
+import InvestmentsScreen from '@/screens/InvestmentsScreen';
+import SettingsScreen from '@/screens/SettingsScreen';
+import { TopTabBar } from '@/ui/TopTabBar';
 
-const DashboardScreen = React.lazy(() => import('@/screens/DashboardScreen'));
-const AccountsScreen = React.lazy(() => import('@/screens/AccountsScreen'));
-const TransactionsScreen = React.lazy(() => import('@/screens/TransactionsScreen'));
-const InvestmentsScreen = React.lazy(() => import('@/screens/InvestmentsScreen'));
-const SettingsScreen = React.lazy(() => import('@/screens/SettingsScreen'));
 const Tab = createBottomTabNavigator();
 
 export function AppTabs() {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.brandPrimaryDark,
-        tabBarInactiveTintColor: theme.colors.brandTextSecondary,
-        tabBarIcon: ({ color, focused }) => {
-          const map: Record<string, [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap]> = {
-            Dashboard: ['grid-outline', 'grid'],
-            Contas: ['wallet-outline', 'wallet'],
-            Transacoes: ['swap-horizontal-outline', 'swap-horizontal'],
-            Investimentos: ['trending-up-outline', 'trending-up'],
-            Configuracoes: ['settings-outline', 'settings']
-          };
-          return <Ionicons name={focused ? map[route.name][1] : map[route.name][0]} size={22} color={color} />;
-        }
-      })}
+        tabBarPosition: 'top',
+        sceneStyle: { backgroundColor: colors.brandBackground },
+      }}
+      tabBar={(props) => <TopTabBar {...props} topInset={insets.top + 8} />}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Contas" component={AccountsScreen} />
-      <Tab.Screen name="Transacoes" component={TransactionsScreen} options={{ title: 'Transacoes' }} />
+      <Tab.Screen name="Transacoes" component={TransactionsScreen} />
+      <Tab.Screen name="Categorias" component={CategoriesScreen} />
+      <Tab.Screen name="Assinaturas" component={SubscriptionsScreen} />
+      <Tab.Screen name="Parcelamentos" component={InstallmentsScreen} />
       <Tab.Screen name="Investimentos" component={InvestmentsScreen} />
-      <Tab.Screen name="Configuracoes" component={SettingsScreen} options={{ title: 'Ajustes' }} />
+      <Tab.Screen name="Contas" component={AccountsScreen} />
+      <Tab.Screen name="Configuracoes" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

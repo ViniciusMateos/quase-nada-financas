@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { normalizeError } from '@/lib/errorMap';
-import { theme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { FormError } from '@/ui/FormError';
 import { TextField } from '@/ui/TextField';
@@ -12,11 +12,12 @@ type AuthMode = 'login' | 'register';
 
 export default function LoginScreen() {
   const { login, register, loading } = useAuth();
+  const { colors, radius, mode: themeMode } = useTheme();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; form?: string; formCode?: string }>({});
 
   const copy = useMemo(() => {
     if (mode === 'register') {
@@ -60,28 +61,45 @@ export default function LoginScreen() {
         await login({ email: trimmedEmail, password });
       }
     } catch (err) {
-      setErrors({ form: normalizeError(err).message });
+      const normalized = normalizeError(err);
+      setErrors({ form: normalized.message, formCode: normalized.code });
     }
   }
 
   const disabled = !email || !password || (mode === 'register' && !confirmPassword);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <StatusBar style="dark" />
-      <View style={styles.logo}><Text style={styles.logoText}>QNF</Text></View>
-      <Text style={styles.title}>{copy.title}</Text>
-      <Text style={styles.subtitle}>{copy.subtitle}</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.container, { backgroundColor: colors.brandBackground }]}
+    >
+      <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+      <View style={[styles.logo, { backgroundColor: colors.brandPrimaryDark, borderRadius: radius.xl }]}>
+        <Text style={styles.logoText}>QNF</Text>
+      </View>
+      <Text style={[styles.title, { color: colors.brandTextPrimary }]}>{copy.title}</Text>
+      <Text style={[styles.subtitle, { color: colors.brandTextSecondary }]}>{copy.subtitle}</Text>
       <View style={styles.form}>
         <TextField label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={errors.email} />
         <TextField label="Senha" value={password} onChangeText={setPassword} secure error={errors.password} />
         {mode === 'register' ? (
           <TextField label="Confirmar senha" value={confirmPassword} onChangeText={setConfirmPassword} secure error={errors.confirmPassword} />
         ) : null}
-        {errors.form ? <FormError message={errors.form} /> : null}
+        {errors.form ? (
+          <FormError
+            message={errors.form}
+            hint={
+              mode === 'login' && errors.formCode === 'INVALID_CREDENTIALS'
+                ? { label: 'Sua conta ainda não existe? Toque em Criar conta', onPress: toggleMode }
+                : undefined
+            }
+          />
+        ) : null}
         <Button label={copy.button} onPress={submit} loading={loading} disabled={disabled} />
         <Pressable onPress={toggleMode} style={styles.toggle} disabled={loading}>
-          <Text style={styles.toggleText}>{copy.toggleText} <Text style={styles.toggleAction}>{copy.toggleAction}</Text></Text>
+          <Text style={[styles.toggleText, { color: colors.brandTextSecondary }]}>
+            {copy.toggleText} <Text style={[styles.toggleAction, { color: colors.brandPrimaryDark }]}>{copy.toggleAction}</Text>
+          </Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -89,13 +107,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.brandBackground, padding: 24, justifyContent: 'center' },
-  logo: { alignSelf: 'center', width: 72, height: 72, borderRadius: 24, backgroundColor: theme.colors.brandPrimaryDark, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, padding: 24, justifyContent: 'center' },
+  logo: { alignSelf: 'center', width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
   logoText: { color: '#FFFFFF', fontWeight: '900', fontSize: 24 },
-  title: { marginTop: 20, fontSize: 28, fontWeight: '800', color: theme.colors.brandTextPrimary, textAlign: 'center' },
-  subtitle: { marginTop: 8, color: theme.colors.brandTextSecondary, textAlign: 'center', fontSize: 15 },
+  title: { marginTop: 20, fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  subtitle: { marginTop: 8, textAlign: 'center', fontSize: 15 },
   form: { marginTop: 40, gap: 16 },
   toggle: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  toggleText: { color: theme.colors.brandTextSecondary, fontWeight: '600' },
-  toggleAction: { color: theme.colors.brandPrimaryDark, fontWeight: '800' }
+  toggleText: { fontWeight: '600' },
+  toggleAction: { fontWeight: '800' },
 });

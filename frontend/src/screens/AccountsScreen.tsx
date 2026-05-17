@@ -1,41 +1,44 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAccounts } from '@/hooks/useAccounts';
-import { theme } from '@/theme/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/ui/Button';
 import { AccountCard } from '@/ui/Cards';
 import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { TabScreen } from '@/ui/TabScreen';
 
 export default function AccountsScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   const { items, loading, error, load, remove, sync } = useAccounts();
 
   const accounts = Array.isArray(items) ? items : [];
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Skeleton />
-        <Skeleton />
-        <Skeleton />
-      </View>
+      <TabScreen>
+        <Skeleton /><Skeleton /><Skeleton />
+      </TabScreen>
     );
   }
 
   if (error) {
-    return <ErrorState subtitle={error} onRetry={load} />;
+    return (
+      <TabScreen>
+        <ErrorState subtitle={error} onRetry={load} />
+      </TabScreen>
+    );
   }
 
   return (
-    <View style={styles.container}>
+    <TabScreen>
       <View style={styles.header}>
-        <Text style={styles.title}>Minhas Contas</Text>
-
+        <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Minhas contas</Text>
         <Button
           label="Conectar"
           icon="add"
           onPress={() => navigation.navigate('ConnectBank')}
-          style={{ width: 136 }}
+          style={{ width: 136, minHeight: 44 }}
         />
       </View>
 
@@ -56,25 +59,12 @@ export default function AccountsScreen() {
           />
         ))
       )}
-    </View>
+    </TabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: theme.colors.brandBackground
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.colors.brandTextPrimary
-  }
+  padded: { paddingHorizontal: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '800' },
 });
