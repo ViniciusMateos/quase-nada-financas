@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { BinanceRepository } from "./binance.repository.js";
 import { BinanceClient } from "../../integrations/binance.client.js";
 import { AuthService } from "../auth/auth.service.js";
@@ -114,7 +115,7 @@ export class BinanceService {
         amountAsset: filledQty,
         binanceOrderId: String(response.orderId ?? ""),
         executedAt: new Date(),
-        responseData: response as unknown as Record<string, unknown>,
+        responseData: response as unknown as Prisma.InputJsonValue,
       });
       return updated;
     } catch (err) {
