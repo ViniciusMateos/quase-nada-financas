@@ -22,7 +22,7 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 
 ```bash
 cd backend
-cp .env.example .env
+cp .env.example .env /
 npm ci
 docker compose up -d postgres redis
 npm run prisma:generate
