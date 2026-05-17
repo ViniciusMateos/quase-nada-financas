@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/theme/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export function TextField({
   label,
@@ -9,42 +9,57 @@ export function TextField({
   secure = false,
   ...props
 }: TextInputProps & { label: string; error?: string | null; secure?: boolean }) {
+  const { colors, radius } = useTheme();
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const hasError = Boolean(error);
 
+  const labelColor = hasError
+    ? colors.brandTextError
+    : focused
+    ? colors.brandPrimaryDark
+    : colors.brandTextSecondary;
+  const borderColor = hasError ? colors.brandError : focused ? colors.brandPrimary : colors.brandDivider;
+  const borderWidth = focused && !hasError ? 2 : 1;
+
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, focused && styles.labelFocus, hasError && styles.labelError]}>{label}</Text>
-      <View style={[styles.inputWrap, focused && styles.focus, hasError && styles.error]}>
+      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputWrap,
+          { borderRadius: radius.md, backgroundColor: colors.brandSurface, borderColor, borderWidth },
+        ]}
+      >
         <TextInput
           {...props}
           secureTextEntry={secure && !visible}
-          placeholderTextColor={theme.colors.brandTextSecondary}
+          placeholderTextColor={colors.brandTextSecondary}
           onFocus={(event) => { setFocused(true); props.onFocus?.(event); }}
           onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
-          style={styles.input}
+          style={[styles.input, { color: colors.brandTextPrimary }]}
         />
         {secure ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={visible ? 'Ocultar senha' : 'Mostrar senha'} onPress={() => setVisible((value) => !value)} style={styles.eye}>
-            <Ionicons name={visible ? 'eye-outline' : 'eye-off-outline'} size={22} color={theme.colors.brandTextSecondary} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={visible ? 'Ocultar senha' : 'Mostrar senha'}
+            onPress={() => setVisible((value) => !value)}
+            style={styles.eye}
+          >
+            <Ionicons name={visible ? 'eye-outline' : 'eye-off-outline'} size={22} color={colors.brandTextSecondary} />
           </Pressable>
         ) : null}
       </View>
-      {error ? <Text style={styles.errorText}>! {error}</Text> : null}
+      {error ? <Text style={[styles.errorText, { color: colors.brandTextError }]}>! {error}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
-  label: { fontSize: 12, fontWeight: '600', color: theme.colors.brandTextSecondary },
-  labelFocus: { color: theme.colors.brandPrimaryDark },
-  labelError: { color: theme.colors.brandTextError },
-  inputWrap: { minHeight: 52, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.brandDivider, backgroundColor: theme.colors.brandSurface, flexDirection: 'row', alignItems: 'center' },
-  focus: { borderWidth: 2, borderColor: theme.colors.brandPrimary },
-  error: { borderColor: theme.colors.brandError },
-  input: { flex: 1, paddingHorizontal: 16, fontSize: 15, color: theme.colors.brandTextPrimary },
+  label: { fontSize: 12, fontWeight: '600' },
+  inputWrap: { minHeight: 52, flexDirection: 'row', alignItems: 'center' },
+  input: { flex: 1, paddingHorizontal: 16, fontSize: 15 },
   eye: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  errorText: { color: theme.colors.brandTextError, fontWeight: '700', fontSize: 12 }
+  errorText: { fontWeight: '700', fontSize: 12 },
 });

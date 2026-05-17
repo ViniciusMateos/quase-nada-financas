@@ -1,28 +1,27 @@
+import { lightPalette } from './palettes';
+
+/**
+ * Tema "legado" (light) ainda exportado para compatibilidade com módulos antigos.
+ * Em código novo prefira `useTheme()` do `ThemeContext`.
+ */
 export const theme = {
-  colors: {
-    brandPrimary: '#22C55E',
-    brandPrimaryAction: '#16A34A',
-    brandPrimaryDark: '#15803D',
-    brandPrimaryTint: '#DCFCE7',
-    brandAccent: '#10B981',
-    brandSuccess: '#16A34A',
-    brandError: '#FF3B5C',
-    brandWarning: '#FF9F0A',
-    brandInfo: '#3B82F6',
-    brandBackground: '#F5F7FA',
-    brandSurface: '#FFFFFF',
-    brandDivider: '#E8ECF0',
-    brandSkeleton: '#E8ECF0',
-    brandSkeletonShimmer: '#F0F4F8',
-    brandTextPrimary: '#1A2030',
-    brandTextSecondary: '#667085',
-    brandTextDisabled: '#C4CAD4',
-    brandTextOnPrimary: '#FFFFFF',
-    brandTextError: '#D92D20',
-    brandTextPositive: '#16A34A',
-    brandTextNegative: '#D92D20',
-    brandOverlay: 'rgba(26, 32, 48, 0.6)'
-  },
+  colors: lightPalette,
   spacing: { space1: 4, space2: 8, space3: 12, space4: 16, space5: 20, space6: 24, space8: 32, space10: 40, space12: 48, space16: 64 },
-  radius: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, full: 9999 }
+  radius: { xs: 6, sm: 10, md: 14, lg: 20, xl: 28, full: 9999 },
+  shadows: {
+    card: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    glow: {
+      shadowColor: '#22C55E',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.5,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+  },
 };

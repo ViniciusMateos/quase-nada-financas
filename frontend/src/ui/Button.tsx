@@ -1,6 +1,9 @@
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/theme/theme';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { useTheme } from '@/contexts/ThemeContext';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Variant = 'primary' | 'secondary' | 'destructive';
 
@@ -11,7 +14,7 @@ export function Button({
   disabled = false,
   variant = 'primary',
   icon,
-  style
+  style,
 }: {
   label: string;
   onPress?: () => void;
@@ -21,35 +24,70 @@ export function Button({
   icon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors, radius } = useTheme();
   const isDisabled = disabled || loading;
+
+  let bg: string;
+  let borderColor: string | undefined;
+  let borderWidth = 0;
+  let labelColor = colors.brandTextOnPrimary;
+  if (variant === 'primary') {
+    bg = colors.brandPrimaryDark;
+    labelColor = '#FFFFFF';
+  } else if (variant === 'destructive') {
+    bg = colors.brandError;
+    labelColor = '#FFFFFF';
+  } else {
+    bg = 'transparent';
+    borderColor = colors.brandPrimary;
+    borderWidth = 1.5;
+    labelColor = colors.brandPrimaryDark;
+  }
+
+  if (isDisabled) {
+    bg = colors.brandDivider;
+    borderColor = colors.brandDivider;
+    labelColor = colors.brandTextDisabled;
+  }
+
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const handlePressIn = () => {
+    if (!isDisabled) scale.value = withTiming(0.96, { duration: 90 });
+  };
+  const handlePressOut = () => {
+    if (!isDisabled) scale.value = withSpring(1, { damping: 14, stiffness: 320 });
+  };
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={isDisabled}
-      style={({ pressed }) => [styles.base, styles[variant], pressed && !isDisabled && styles.pressed, isDisabled && styles.disabled, style]}
+      style={[
+        styles.base,
+        { backgroundColor: bg, borderColor, borderWidth, borderRadius: radius.lg },
+        animStyle,
+        style,
+      ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? theme.colors.brandPrimaryDark : '#FFFFFF'} />
+        <ActivityIndicator color={variant === 'secondary' ? colors.brandPrimaryDark : '#FFFFFF'} />
       ) : (
         <>
-          {icon ? <Ionicons name={icon} size={20} color={variant === 'primary' || variant === 'destructive' ? '#FFFFFF' : theme.colors.brandPrimaryDark} /> : null}
-          <Text style={[styles.label, variant === 'secondary' && styles.secondaryLabel, isDisabled && styles.disabledLabel]}>{label}</Text>
+          {icon ? <Ionicons name={icon} size={20} color={labelColor} /> : null}
+          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { minHeight: 52, borderRadius: theme.radius.md, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  primary: { backgroundColor: theme.colors.brandPrimaryDark },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: theme.colors.brandPrimary },
-  destructive: { backgroundColor: theme.colors.brandError },
-  pressed: { opacity: 0.86 },
-  disabled: { backgroundColor: theme.colors.brandDivider, borderColor: theme.colors.brandDivider },
-  label: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  secondaryLabel: { color: theme.colors.brandPrimaryDark },
-  disabledLabel: { color: theme.colors.brandTextDisabled }
+  base: { minHeight: 52, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  label: { fontSize: 15, fontWeight: '700' },
 });
