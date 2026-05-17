@@ -3,7 +3,7 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
-## [Unreleased]
+## [0.2.0] - 2026-05-16
 
 ### Added
 
@@ -63,7 +63,7 @@ O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
 - Typo no comando `cp .env.example .env` do README (`/` solta no fim).
 
-## [1.0.0] - 2026-05-12
+## [0.1.0] - 2026-05-12
 
 ### Added
 

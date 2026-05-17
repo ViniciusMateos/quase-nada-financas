@@ -1,6 +1,6 @@
 {
   "name": "quase-nada-financas-backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Backend do Quase Nada Finanças — agregador financeiro + investimento cripto",
   "main": "dist/server.js",
   "scripts": {
