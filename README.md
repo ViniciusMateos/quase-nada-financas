@@ -10,10 +10,17 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 ## Features
 
 - Autenticacao JWT com access token, refresh token e logout.
-- Dashboard com saldo total, receitas, despesas, maiores categorias e transacoes recentes.
-- Contas bancarias via Pluggy Connect WebView.
-- Transacoes com filtros, paginacao por cursor e edicao de categoria.
+- Dashboard com saldo total, receitas, despesas, top categorias (com %) e transacoes recentes.
+- Contas bancarias via Pluggy Connect (SDK nativo), com logo e cor do banco.
+- Webhook Pluggy auto-cria contas quando o callback chega antes do retorno do app.
+- Transacoes com filtros por conta/tipo (BANK/CREDIT), busca, paginacao por cursor,
+  edicao de alias, categoria e override de assinatura (propaga para similares).
+- Categorias com drill-down por periodo e categorizacao automatica por
+  regras do usuario, MCC e keyword matching.
+- Detecção de assinaturas recorrentes (mensal/anual) com projecao de gasto.
+- Parcelamentos: progresso, valor pago, restante e data estimada da ultima parcela.
 - Binance: conexao por API key, carteira, cotacoes e ordens com biometria.
+- Tema claro/escuro com `ThemeProvider` e paletas dedicadas.
 - Cache offline para dados principais.
 - Deploy backend com Docker, PostgreSQL, Redis e GitHub Actions.
 - Build iOS interno via EAS `preview`.
@@ -35,7 +42,7 @@ API disponivel em `http://localhost:3000/api/v1`. Health check em `http://localh
 ## Quickstart Mobile
 
 ```bash
-cd mobile
+cd frontend
 npm ci
 cp .env.example .env
 npx expo start
@@ -44,7 +51,7 @@ npx expo start
 Para instalar no iPhone via QR code:
 
 ```bash
-cd mobile
+cd frontend
 npx eas login
 npx eas build --profile preview --platform ios
 ```
@@ -72,7 +79,7 @@ backend/
     lib/
     middleware/
     workers/
-mobile/
+frontend/
   app.config.js
   eas.json
   src/
@@ -82,6 +89,7 @@ mobile/
     navigation/
     screens/
     services/
+    theme/
     ui/
 ```
 
