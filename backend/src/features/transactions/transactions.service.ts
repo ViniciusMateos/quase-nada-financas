@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { TransactionsRepository } from "./transactions.repository.js";
 import { Errors } from "../../lib/errors.js";
 import { MCC_TO_CATEGORY_NAME } from "./mcc-map.js";
@@ -8,6 +9,7 @@ export interface ListFilters {
   cursor?: string;
   limit: number;
   accountId?: string;
+  accountType?: 'BANK' | 'CREDIT';
   startDate?: Date;
   endDate?: Date;
   categoryId?: string;
@@ -23,10 +25,11 @@ export class TransactionsService {
 
   async listTransactions(userId: string, filters: ListFilters) {
     const cursor = decodeCursor(filters.cursor);
-    const items = await this.repo.findTransactionsPage({
+    const rows = await this.repo.findTransactionsPage({
       userId,
       limit: filters.limit + 1,
       accountId: filters.accountId,
+      accountType: filters.accountType,
       startDate: filters.startDate,
       endDate: filters.endDate,
       categoryId: filters.categoryId,
@@ -34,12 +37,101 @@ export class TransactionsService {
     });
 
     let nextCursor: string | null = null;
-    if (items.length > filters.limit) {
-      const last = items.pop()!;
+    if (rows.length > filters.limit) {
+      const last = rows.pop()!;
       nextCursor = encodeCursor({ id: last.id, occurredAt: last.occurredAt.toISOString() });
     }
 
+    const items = rows.map((row: any) => ({
+      id: row.id,
+      accountId: row.bankAccountId,
+      accountName: row.bankAccount?.connectedAccount?.bankName ?? null,
+      accountLogoUrl: row.bankAccount?.connectedAccount?.logoUrl ?? null,
+      occurredAt: row.occurredAt.toISOString(),
+      description: row.alias ?? row.description,
+      originalDescription: row.description,
+      alias: row.alias,
+      amount: row.amount,
+      currency: row.currency,
+      paymentMethod: row.paymentMethod,
+      installmentCurrent: row.installmentCurrent,
+      installmentTotal: row.installmentTotal,
+      merchantName: row.merchantName,
+      categoryId: row.categoryId,
+      categoryName: row.category?.name ?? null,
+      categoryIcon: row.category?.icon ?? null,
+      categoryColor: row.category?.color ?? null,
+      isSubscriptionOverride: row.isSubscriptionOverride,
+      pending: false,
+    }));
+
     return { items, nextCursor };
+  }
+
+  async summary(
+    userId: string,
+    filters: { startDate?: Date; endDate?: Date; accountId?: string; accountType?: 'BANK' | 'CREDIT' }
+  ): Promise<{ income: number; expense: number; net: number; count: number }> {
+    const r = await this.repo.sumByPeriod({
+      userId,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      accountId: filters.accountId,
+      accountType: filters.accountType,
+    });
+    return {
+      income: round2(r.income),
+      expense: round2(r.expense),
+      net: round2(r.income - r.expense),
+      count: r.count,
+    };
+  }
+
+  async listSimilar(userId: string, transactionId: string) {
+    const tx = await this.repo.findTransactionByIdForUser(userId, transactionId);
+    if (!tx) throw Errors.NotFound("Transação não encontrada");
+    const rows = await this.repo.findSimilarTransactions(
+      userId,
+      transactionId,
+      tx.merchantName,
+      tx.description,
+      10
+    );
+    return rows.map((row: any) => ({
+      id: row.id,
+      occurredAt: row.occurredAt.toISOString(),
+      amount: row.amount,
+      description: row.description,
+      categoryName: row.category?.name ?? null,
+      categoryIcon: row.category?.icon ?? null,
+      accountName: row.bankAccount?.connectedAccount?.bankName ?? null,
+    }));
+  }
+
+  /**
+   * Reprocessa categoryId de todas as transactions do user usando as regras atuais.
+   * Útil após mudança no KEYWORD_RULES ou no MCC_TO_CATEGORY_NAME.
+   */
+  async recategorizeAll(userId: string): Promise<{ updated: number; total: number }> {
+    const all = await this.repo.findAllTransactionsByUser(userId);
+    const userRules = await this.repo.findCategoryRulesByUser(userId);
+    let updated = 0;
+    for (const tx of all) {
+      const ptx = {
+        id: tx.externalId,
+        date: tx.occurredAt.toISOString(),
+        amount: tx.amount,
+        currencyCode: tx.currency,
+        description: tx.description,
+        merchant: { name: tx.merchantName ?? undefined, mcc: tx.merchantMcc ?? undefined },
+      } as PluggyTransaction;
+      const newCategoryId = await this.resolveCategoryId(userId, ptx, userRules);
+      if (newCategoryId && newCategoryId !== tx.categoryId) {
+        await this.repo.updateTransactionCategory(tx.id, newCategoryId);
+        updated++;
+      }
+    }
+    return { updated, total: all.length };
   }
 
   async updateCategory(
@@ -70,6 +162,71 @@ export class TransactionsService {
   }
 
   /**
+   * Update genérico de transação: descrição (via alias), categoria e flag de
+   * assinatura. Quando algum desses campos muda, propaga automaticamente pra
+   * todas as transações similares do user (mesmo merchant, ou mesma descrição
+   * normalizada se merchant=null).
+   *
+   * Para mudança de categoria, também cria uma CategoryRule pra futuras
+   * transações desse merchant caírem na nova categoria automaticamente.
+   */
+  async updateTransaction(
+    userId: string,
+    transactionId: string,
+    body: {
+      alias?: string | null;
+      categoryId?: string;
+      isSubscriptionOverride?: boolean | null;
+    }
+  ): Promise<{ updated: any; affectedSimilar: number }> {
+    const tx = await this.repo.findTransactionByIdForUser(userId, transactionId);
+    if (!tx) throw Errors.NotFound("Transação não encontrada");
+
+    const data: { alias?: string | null; categoryId?: string; isSubscriptionOverride?: boolean | null } = {};
+    if (body.alias !== undefined) {
+      const trimmed = body.alias === null ? null : body.alias.trim();
+      data.alias = trimmed === "" ? null : trimmed;
+    }
+    if (body.categoryId !== undefined) {
+      const category = await this.repo.findCategoryForUser(userId, body.categoryId);
+      if (!category) throw Errors.NotFound("Categoria não encontrada");
+      data.categoryId = body.categoryId;
+    }
+    if (body.isSubscriptionOverride !== undefined) {
+      data.isSubscriptionOverride = body.isSubscriptionOverride;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return { updated: tx, affectedSimilar: 0 };
+    }
+
+    const updated = await this.repo.updateTransactionFields(transactionId, data);
+
+    // Propaga pra similares
+    const affectedSimilar = await this.repo.updateSimilarTransactions(
+      userId,
+      transactionId,
+      { merchantName: tx.merchantName, description: tx.description },
+      data
+    );
+
+    // Se a categoria mudou, criar CategoryRule pra futuras transações desse
+    // merchant entrarem na nova categoria automaticamente (mesmo comportamento
+    // do updateCategory com createRule=true).
+    if (data.categoryId && tx.merchantName) {
+      await this.repo.createCategoryRule({
+        userId,
+        merchantNamePattern: tx.merchantName.toLowerCase(),
+        mcc: tx.merchantMcc ?? null,
+        categoryId: data.categoryId,
+        priority: 10,
+      });
+    }
+
+    return { updated, affectedSimilar };
+  }
+
+  /**
    * Insere transações vindas do Pluggy aplicando categorização automática
    * pela ordem: 1) regras do usuário, 2) MCC → categoria padrão.
    */
@@ -88,11 +245,12 @@ export class TransactionsService {
       if (exists) continue;
 
       const categoryId = await this.resolveCategoryId(userId, ptx, userRules);
+      const normalizedAmount = normalizeAmountSign(ptx);
 
       await this.repo.createTransaction({
         bankAccountId,
         externalId: ptx.id,
-        amount: ptx.amount,
+        amount: normalizedAmount,
         currency: ptx.currencyCode ?? "BRL",
         description: ptx.description ?? "",
         merchantName: ptx.merchant?.name ?? null,
@@ -102,7 +260,7 @@ export class TransactionsService {
         installmentCurrent: ptx.creditCardMetadata?.installmentNumber ?? null,
         installmentTotal: ptx.creditCardMetadata?.totalInstallments ?? null,
         categoryId,
-        rawData: ptx as unknown as Record<string, unknown>,
+        rawData: ptx as unknown as Prisma.InputJsonValue,
       });
       inserted++;
     }
@@ -111,7 +269,7 @@ export class TransactionsService {
   }
 
   private async resolveCategoryId(
-    userId: string,
+    _userId: string,
     ptx: PluggyTransaction,
     userRules: Array<{
       merchantNamePattern: string | null;
@@ -122,6 +280,7 @@ export class TransactionsService {
   ): Promise<string | null> {
     const merchantName = ptx.merchant?.name?.toLowerCase() ?? "";
     const mcc = ptx.merchant?.mcc ?? null;
+    const description = (ptx.description ?? "").toLowerCase();
 
     // 1) regras do usuário (prioridade desc)
     const sortedRules = [...userRules].sort((a, b) => b.priority - a.priority);
@@ -143,10 +302,65 @@ export class TransactionsService {
       }
     }
 
-    // 3) fallback: categoria "Outros"
+    // 3) keyword matching no description + merchant
+    const haystack = `${description} ${merchantName}`;
+    const matched = matchByKeywords(haystack);
+    if (matched) {
+      const cat = DEFAULT_CATEGORIES.find((c) => c.name === matched);
+      if (cat) return cat.id;
+    }
+
+    // 4) fallback: categoria "Outros"
     const fallback = DEFAULT_CATEGORIES.find((c) => c.name === "Outros");
     return fallback?.id ?? null;
   }
+}
+
+const KEYWORD_RULES: Array<{ category: string; keywords: string[] }> = [
+  // Pagamento de fatura é prioritário pra não cair em "Tarifas"
+  { category: "Pagamento de fatura", keywords: ["pagamento cartão", "pagamento cartao", "pagamento de fatura", "pagamento recebido", "fatura cartão", "fatura cartao"] },
+  { category: "Investimentos", keywords: ["rendiment", "cdb", "tesouro", "cri ", "cra ", "fundo "] },
+  { category: "Tarifas", keywords: ["iof", "anuidade", "juros", "tarifa", "estorno"] },
+  { category: "Mercado", keywords: ["mercado ", "supermercado", "atacad", "carrefour", "extra ", "pão de açúcar", "pao de acucar", "dia ", "assaí", "assai", "verdurão", "hortifruti"] },
+  { category: "Restaurantes", keywords: ["restaurant", "lanchon", "burger", "mc donalds", "mcdonalds", "subway", "pizza", "ifood", "rappi", "uber eats", "bar ", "cafeteria", "starbucks", "brigadeiro", "padaria", "doceria", "sorveteria"] },
+  { category: "Transporte", keywords: ["uber", "99 ", "99app", "99 ", "cabify", "blablacar", "posto ", "shell", "ipiranga", "ale ", "br mania", "estacionament", "pedagio", "pedágio", "metro ", "metrô"] },
+  { category: "Assinaturas", keywords: ["netflix", "spotify", "disney", "prime video", "amazon prime", "hbo", "globoplay", "deezer", "youtube premium", "apple music", "apple tv", "tim ", "vivo ", "claro ", "oi ", "net ", "internet", "assinatura"] },
+  { category: "Saúde", keywords: ["farmacia", "farmácia", "drogaria", "drogasil", "raia", "pacheco", "ikesaki", "hospital", "clinica", "clínica", "laboratorio", "laboratório", "consulta médica", "consulta medica", "dentista"] },
+  { category: "Moradia", keywords: ["aluguel", "condominio", "condomínio", "energia", "enel", "cpfl", "elektro", "agua", "água", "sabesp", "gas ", "gás", "iptu"] },
+  { category: "Educação", keywords: ["escola", "faculdade", "universidade", "curso", "livro ", "livraria", "alura", "udemy", "coursera"] },
+  { category: "Lazer", keywords: ["cinema", "ingresso", "show ", "festa", "balada", "parque", "academia", "smart fit", "smartfit", "passeio"] },
+  { category: "Compras", keywords: ["mercado livre", "amazon", "shopee", "aliexpress", "americanas", "magalu", "magazine luiza", "casas bahia", "renner", "riachuelo", "loja "] },
+  { category: "Vestuário", keywords: ["zara", "c&a", "nike", "adidas", "centauro", "decathlon", "tenis", "tênis", "calçad", "calcad"] },
+  { category: "Salário", keywords: ["salario", "salário", "pagamento de salário", "pagamento salario", "folha de pag"] },
+];
+
+function matchByKeywords(text: string): string | null {
+  for (const rule of KEYWORD_RULES) {
+    for (const kw of rule.keywords) {
+      if (text.includes(kw)) return rule.category;
+    }
+  }
+  return null;
+}
+
+/**
+ * Pluggy/conectores às vezes retornam amount com sinal inconsistente com o
+ * tipo da transação (ex: TIM POS vem +55 mas type=DEBIT). Normaliza usando
+ * o type como fonte da verdade:
+ *   DEBIT  → amount negativo (saída de dinheiro)
+ *   CREDIT → amount positivo (entrada de dinheiro)
+ * Se o type não vier, mantém o sinal original.
+ */
+function normalizeAmountSign(ptx: PluggyTransaction & { type?: string }): number {
+  const raw = ptx.amount;
+  const type = (ptx as any).type;
+  if (type === "DEBIT") return -Math.abs(raw);
+  if (type === "CREDIT") return Math.abs(raw);
+  return raw;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function encodeCursor(payload: CursorPayload): string {
