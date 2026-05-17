@@ -53,7 +53,16 @@ export async function pluggyRoutes(app: FastifyInstance): Promise<void> {
   const controller = new AccountsController();
   app.addHook("preHandler", authenticate);
 
-  app.post("/connect-token", { handler: controller.pluggyConnectToken });
+  app.post("/connect-token", {
+    schema: {
+      body: {
+        type: "object",
+        properties: { oauthRedirectUri: { type: "string", maxLength: 512 } },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.pluggyConnectToken,
+  });
 
   app.post("/callback", {
     schema: {

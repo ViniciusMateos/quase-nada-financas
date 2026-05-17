@@ -27,7 +27,10 @@ interface PluggyConnectTokenResponse { accessToken: string }
 interface PluggyItemResponse {
   id: string;
   consentExpiresAt?: string;
-  connector?: { name?: string };
+  connector?: { name?: string; imageUrl?: string; primaryColor?: string };
+  clientUserId?: string;
+  status?: string;
+  executionStatus?: string;
 }
 
 export class PluggyClient {
@@ -60,12 +63,18 @@ export class PluggyClient {
     return json.apiKey;
   }
 
-  async createConnectToken(userId: string): Promise<string> {
+  async createConnectToken(userId: string, oauthRedirectUri?: string): Promise<string> {
     const apiKey = await this.getApiKey();
+    const options: Record<string, unknown> = {
+      clientUserId: userId,
+      sandbox: env.NODE_ENV !== 'production',
+    };
+    if (oauthRedirectUri) options.oauthRedirectUri = oauthRedirectUri;
+
     const res = await request(`${env.PLUGGY_API_URL}/connect_token`, {
       method: "POST",
       headers: { "content-type": "application/json", "X-API-KEY": apiKey },
-      body: JSON.stringify({ options: { clientUserId: userId, sandbox: env.NODE_ENV !== 'production' } }),
+      body: JSON.stringify({ options }),
     });
     if (res.statusCode >= 400) {
       throw Errors.ExternalService(`Pluggy connect_token failed (${res.statusCode})`);

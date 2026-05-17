@@ -9,8 +9,8 @@ export class AccountsService {
   private readonly pluggy = new PluggyClient();
   private readonly txService = new TransactionsService();
 
-  async createPluggyConnectToken(userId: string): Promise<string> {
-    return this.pluggy.createConnectToken(userId);
+  async createPluggyConnectToken(userId: string, oauthRedirectUri?: string): Promise<string> {
+    return this.pluggy.createConnectToken(userId, oauthRedirectUri);
   }
 
   async handlePluggyCallback(userId: string, itemId: string) {
@@ -21,6 +21,8 @@ export class AccountsService {
       userId,
       pluggyItemId: itemId,
       bankName: item.connector?.name ?? "Banco",
+      logoUrl: item.connector?.imageUrl ?? null,
+      primaryColor: item.connector?.primaryColor ?? null,
       consentExpiresAt: item.consentExpiresAt ? new Date(item.consentExpiresAt) : null,
       status: "ACTIVE",
     });
@@ -67,10 +69,27 @@ export class AccountsService {
     const conn = await this.repo.findConnectedAccountById(connectedAccountId);
     if (!conn || conn.userId !== userId) throw Errors.NotFound("Conta não encontrada");
 
+    // Atualiza logoUrl/primaryColor a cada sync (Pluggy pode trocar)
+    const item = await this.pluggy.getItem(conn.pluggyItemId).catch(() => null);
+    if (item?.connector) {
+      await this.repo.upsertConnectedAccount({
+        userId,
+        pluggyItemId: conn.pluggyItemId,
+        bankName: item.connector.name ?? conn.bankName,
+        logoUrl: item.connector.imageUrl ?? null,
+        primaryColor: item.connector.primaryColor ?? null,
+        consentExpiresAt: item.consentExpiresAt ? new Date(item.consentExpiresAt) : null,
+        status: "ACTIVE",
+      });
+    }
+
     const remoteAccounts = await this.pluggy.listAccounts(conn.pluggyItemId);
     let totalNewTx = 0;
 
     for (const acc of remoteAccounts) {
+      const previous = await this.repo.findBankAccountByExternal(conn.id, acc.id);
+      const since = previous?.lastSyncAt ?? new Date(Date.now() - 90 * 86_400_000);
+
       const bankAccount = await this.repo.upsertBankAccount({
         connectedAccountId: conn.id,
         externalId: acc.id,
@@ -80,7 +99,6 @@ export class AccountsService {
         lastSyncAt: new Date(),
       });
 
-      const since = bankAccount.lastSyncAt ?? new Date(Date.now() - 90 * 86_400_000);
       const txs = await this.pluggy.listTransactions(acc.id, since);
       const ingested = await this.txService.ingestTransactions(userId, bankAccount.id, txs);
       totalNewTx += ingested;

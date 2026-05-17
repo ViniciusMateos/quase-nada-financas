@@ -6,6 +6,8 @@ export class AccountsRepository {
     userId: string;
     pluggyItemId: string;
     bankName: string;
+    logoUrl?: string | null;
+    primaryColor?: string | null;
     consentExpiresAt: Date | null;
     status: string;
   }): Promise<ConnectedAccount> {
@@ -13,6 +15,8 @@ export class AccountsRepository {
       where: { pluggyItemId: data.pluggyItemId },
       update: {
         bankName: data.bankName,
+        logoUrl: data.logoUrl ?? null,
+        primaryColor: data.primaryColor ?? null,
         consentExpiresAt: data.consentExpiresAt,
         status: data.status,
       },
@@ -47,6 +51,15 @@ export class AccountsRepository {
 
   findConnectedAccountById(id: string): Promise<ConnectedAccount | null> {
     return prisma.connectedAccount.findUnique({ where: { id } });
+  }
+
+  findBankAccountByExternal(
+    connectedAccountId: string,
+    externalId: string
+  ): Promise<BankAccount | null> {
+    return prisma.bankAccount.findUnique({
+      where: { connectedAccountId_externalId: { connectedAccountId, externalId } },
+    });
   }
 
   findConnectedAccountsByUser(userId: string): Promise<ConnectedAccount[]> {

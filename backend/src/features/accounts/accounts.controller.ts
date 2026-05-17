@@ -4,6 +4,7 @@ import { AccountsService } from "./accounts.service.js";
 interface ListQuery { forceSync?: boolean }
 interface IdParams { connectedAccountId: string }
 interface CallbackBody { itemId: string }
+interface ConnectTokenBody { oauthRedirectUri?: string }
 
 export class AccountsController {
   private readonly service = new AccountsService();
@@ -23,8 +24,8 @@ export class AccountsController {
     return reply.send(result);
   };
 
-  pluggyConnectToken = async (req: FastifyRequest, reply: FastifyReply) => {
-    const token = await this.service.createPluggyConnectToken(req.userId);
+  pluggyConnectToken = async (req: FastifyRequest<{ Body: ConnectTokenBody }>, reply: FastifyReply) => {
+    const token = await this.service.createPluggyConnectToken(req.userId, req.body?.oauthRedirectUri);
     return reply.send({ connectToken: token });
   };
 
