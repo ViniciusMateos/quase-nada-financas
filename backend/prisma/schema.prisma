@@ -40,6 +40,8 @@ model ConnectedAccount {
   userId           String
   pluggyItemId     String        @unique
   bankName         String
+  logoUrl          String?
+  primaryColor     String?
   consentExpiresAt DateTime?
   status           String        @default("ACTIVE")
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -79,6 +81,10 @@ model Transaction {
   occurredAt         DateTime
   installmentCurrent Int?
   installmentTotal   Int?
+  // null = decisão automática pelo algoritmo
+  // true = forçar como assinatura (override positivo)
+  // false = forçar fora (override negativo, p.ex. falso positivo)
+  isSubscriptionOverride Boolean?
   rawData            Json?
   bankAccount        BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
   category           Category?   @relation(fields: [categoryId], references: [id])
