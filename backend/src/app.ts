@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance } from "fastify";
+import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { env } from "./config/env.js";
@@ -11,8 +11,13 @@ import { transactionsRoutes } from "./features/transactions/transactions.routes.
 import { categoriesRoutes } from "./features/categories/categories.routes.js";
 import { dashboardRoutes } from "./features/dashboard/dashboard.routes.js";
 import { binanceRoutes } from "./features/binance/binance.routes.js";
+import {
+  subscriptionsRoutes,
+  categoryStatsRoutes,
+  installmentsRoutes,
+} from "./features/analytics/analytics.routes.js";
 
-export async function buildApp(): Promise<FastifyInstance> {
+export async function buildApp() {
   const app = Fastify({
     logger,
     trustProxy: true,
@@ -41,6 +46,9 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(categoriesRoutes, { prefix: "/categories" });
       await api.register(dashboardRoutes, { prefix: "/dashboard" });
       await api.register(binanceRoutes, { prefix: "/binance" });
+      await api.register(subscriptionsRoutes, { prefix: "/subscriptions" });
+      await api.register(categoryStatsRoutes, { prefix: "/categories" });
+      await api.register(installmentsRoutes, { prefix: "/installments" });
     },
     { prefix: "/api/v1" }
   );

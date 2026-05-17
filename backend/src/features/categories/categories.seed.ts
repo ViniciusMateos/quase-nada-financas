@@ -24,5 +24,9 @@ export const DEFAULT_CATEGORIES: SeedCategory[] = [
   { id: "00000000-0000-4000-8000-00000000000C", name: "Investimentos",  icon: "trending-up",    color: "#10B981" },
   { id: "00000000-0000-4000-8000-00000000000D", name: "Tarifas",        icon: "dollar-sign",    color: "#9CA3AF" },
   { id: "00000000-0000-4000-8000-00000000000E", name: "Salário",        icon: "briefcase",      color: "#16A34A" },
-  { id: "00000000-0000-4000-8000-00000000000F", name: "Outros",         icon: "more-horizontal",color: "#6B7280" },
+  { id: "00000000-0000-4000-8000-00000000000F", name: "Outros",             icon: "more-horizontal", color: "#6B7280" },
+  { id: "00000000-0000-4000-8000-000000000010", name: "Pagamento de fatura", icon: "repeat",          color: "#94A3B8" },
 ];
+
+/** Transferência interna conta↔cartão. Excluída dos summaries. */
+export const INTERNAL_TRANSFER_CATEGORY_ID = "00000000-0000-4000-8000-000000000010";

@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database.js";
 import { redis } from "../../lib/redis.js";
+import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
 
 const CACHE_TTL = 5 * 60;
 
@@ -8,7 +9,13 @@ export interface DashboardPayload {
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
-  byCategory: Array<{ categoryId: string; name: string; total: number }>;
+  topCategories: Array<{
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    total: number;
+    percentage: number;
+  }>;
   topMerchants: Array<{ name: string; total: number }>;
   recentTransactions: Array<{
     id: string;
@@ -41,18 +48,19 @@ export class DashboardService {
       where: {
         bankAccount: { connectedAccount: { userId } },
         occurredAt: { gte: start, lt: end },
+        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
       },
       select: {
         amount: true,
         merchantName: true,
         categoryId: true,
-        category: { select: { name: true } },
+        category: { select: { name: true, icon: true } },
       },
     });
 
     let monthlyIncome = 0;
     let monthlyExpenses = 0;
-    const byCategoryMap = new Map<string, { categoryId: string; name: string; total: number }>();
+    const byCategoryMap = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string | null; total: number }>();
     const merchantMap = new Map<string, number>();
 
     for (const tx of monthTxs) {
@@ -63,10 +71,12 @@ export class DashboardService {
         if (tx.categoryId) {
           const key = tx.categoryId;
           const prev = byCategoryMap.get(key);
-          const name = tx.category?.name ?? "Sem categoria";
+          const categoryName = tx.category?.name ?? "Sem categoria";
+          const categoryIcon = tx.category?.icon ?? null;
           byCategoryMap.set(key, {
             categoryId: key,
-            name,
+            categoryName,
+            categoryIcon,
             total: (prev?.total ?? 0) + Math.abs(tx.amount),
           });
         }
@@ -76,7 +86,11 @@ export class DashboardService {
       }
     }
 
-    const byCategory = [...byCategoryMap.values()].sort((a, b) => b.total - a.total);
+    const sortedCategories = [...byCategoryMap.values()].sort((a, b) => b.total - a.total);
+    const topCategories = sortedCategories.slice(0, 6).map((c) => ({
+      ...c,
+      percentage: monthlyExpenses > 0 ? round((c.total / monthlyExpenses) * 100) : 0,
+    }));
     const topMerchants = [...merchantMap.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -110,7 +124,7 @@ export class DashboardService {
       totalBalance: totalBalanceRow._sum.balance ?? 0,
       monthlyIncome: round(monthlyIncome),
       monthlyExpenses: round(monthlyExpenses),
-      byCategory: byCategory.map((c) => ({ ...c, total: round(c.total) })),
+      topCategories: topCategories.map((c) => ({ ...c, total: round(c.total) })),
       topMerchants: topMerchants.map((m) => ({ ...m, total: round(m.total) })),
       recentTransactions,
       generatedAt: new Date().toISOString(),
