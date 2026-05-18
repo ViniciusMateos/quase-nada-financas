@@ -20,7 +20,6 @@ export const DEFAULT_CATEGORIES: SeedCategory[] = [
   { id: "00000000-0000-4000-8000-000000000008", name: "Compras",        icon: "shopping-bag",   color: "#A855F7" },
   { id: "00000000-0000-4000-8000-000000000009", name: "Vestuário",      icon: "shirt",          color: "#F472B6" },
   { id: "00000000-0000-4000-8000-00000000000A", name: "Serviços",       icon: "wrench",         color: "#64748B" },
-  { id: "00000000-0000-4000-8000-00000000000B", name: "Assinaturas",    icon: "repeat",         color: "#0EA5E9" },
   { id: "00000000-0000-4000-8000-00000000000C", name: "Investimentos",  icon: "trending-up",    color: "#10B981" },
   { id: "00000000-0000-4000-8000-00000000000D", name: "Tarifas",        icon: "dollar-sign",    color: "#9CA3AF" },
   { id: "00000000-0000-4000-8000-00000000000E", name: "Salário",        icon: "briefcase",      color: "#16A34A" },

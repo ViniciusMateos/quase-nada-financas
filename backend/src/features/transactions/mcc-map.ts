@@ -71,8 +71,8 @@ export const MCC_TO_CATEGORY_NAME: Record<string, string> = {
   "7298": "Serviços",
   "7299": "Serviços",
 
-  // Assinaturas / Streaming
-  "5968": "Assinaturas",
+  // Assinaturas / Streaming → Serviços (a "aba Assinaturas" é derivada pela analytics)
+  "5968": "Serviços",
 
   // Investimentos
   "6211": "Investimentos",
