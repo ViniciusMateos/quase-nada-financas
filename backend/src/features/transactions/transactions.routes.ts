@@ -14,6 +14,7 @@ export async function transactionsRoutes(app: FastifyInstance): Promise<void> {
           cursor: { type: "string" },
           limit: { type: "integer", minimum: 1, maximum: 100, default: 30 },
           accountId: { type: "string", format: "uuid" },
+          accountIds: { type: "string" },
           accountType: { type: "string", enum: ["BANK", "CREDIT"] },
           startDate: { type: "string", format: "date" },
           endDate: { type: "string", format: "date" },
@@ -31,6 +32,7 @@ export async function transactionsRoutes(app: FastifyInstance): Promise<void> {
         type: "object",
         properties: {
           accountId: { type: "string", format: "uuid" },
+          accountIds: { type: "string" },
           accountType: { type: "string", enum: ["BANK", "CREDIT"] },
           startDate: { type: "string", format: "date" },
           endDate: { type: "string", format: "date" },

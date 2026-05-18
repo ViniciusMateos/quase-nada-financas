@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { addMonths, endOfMonth, format, isWithinInterval, startOfMonth } from 'date-fns';
@@ -8,8 +8,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency } from '@/lib/formatters';
+import { accountsService } from '@/services/accounts.service';
 import { transactionsService, TransactionsSummary } from '@/services/transactions.service';
 import { TransactionCard } from '@/ui/Cards';
 import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
@@ -25,21 +27,40 @@ export default function TransactionsScreen() {
   const route = useRoute<any>();
   const { colors, radius, shadows } = useTheme();
   const { width: screenW } = useWindowDimensions();
-  const { items, loading, loadingMore, error, reload, loadMore, setFilters } = useTransactions({
-    accountId: route.params?.accountId,
-  });
+  const { items, loading, loadingMore, error, reload, loadMore, setFilters } = useTransactions({});
   const { items: accounts } = useAccounts();
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  // Filtro por instituição (ConnectedAccount.id). Selecionar uma pill envia accountIds = bankAccounts daquela conexão.
   const [accountFilter, setAccountFilter] = useState<string | null>(route.params?.accountId ?? null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled((accounts ?? []).map((acc) => accountsService.sync(acc.id)));
+      await reload();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [accounts, reload]);
+
+  useForegroundRefresh(handleRefresh);
+
+  const selectedBankAccountIds = useMemo(() => {
+    if (!accountFilter) return undefined;
+    const conn = accounts?.find((a) => a.id === accountFilter);
+    const ids = conn?.bankAccounts?.map((b) => b.id) ?? [];
+    return ids.length > 0 ? ids : undefined;
+  }, [accountFilter, accounts]);
 
   useEffect(() => {
     setFilters({
-      accountId: accountFilter ?? undefined,
+      accountIds: selectedBankAccountIds,
       accountType: sourceFilter === 'all' ? undefined : sourceFilter,
     });
-  }, [accountFilter, sourceFilter, setFilters]);
+  }, [selectedBankAccountIds, sourceFilter, setFilters]);
   const [monthOffset, setMonthOffset] = useState(0);
   const [customRange, setCustomRange] = useState<{ start: Date; end: Date } | null>(null);
   const [periodPickerOpen, setPeriodPickerOpen] = useState(false);
@@ -124,10 +145,11 @@ export default function TransactionsScreen() {
 
   const filtered = useMemo(() => {
     const searchLower = search.trim().toLowerCase();
+    const allowedBankAccountIds = selectedBankAccountIds ? new Set(selectedBankAccountIds) : null;
     return items.filter((tx) => {
       if (typeFilter === 'income' && tx.amount <= 0) return false;
       if (typeFilter === 'expense' && tx.amount >= 0) return false;
-      if (accountFilter && tx.accountId !== accountFilter) return false;
+      if (allowedBankAccountIds && (!tx.accountId || !allowedBankAccountIds.has(tx.accountId))) return false;
       const txDate = new Date(tx.occurredAt);
       if (!Number.isNaN(txDate.getTime()) && !isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
         return false;
@@ -138,7 +160,7 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [items, typeFilter, accountFilter, monthStart, monthEnd, search]);
+  }, [items, typeFilter, selectedBankAccountIds, monthStart, monthEnd, search]);
 
   // Resumo do MÊS INTEIRO vem do backend (não depende das transações paginadas)
   const [summary, setSummary] = useState<TransactionsSummary | null>(null);
@@ -150,7 +172,7 @@ export default function TransactionsScreen() {
       .summary({
         startDate: format(monthStart, 'yyyy-MM-dd'),
         endDate: format(monthEnd, 'yyyy-MM-dd'),
-        accountId: accountFilter ?? undefined,
+        accountIds: selectedBankAccountIds?.join(','),
         accountType: sourceFilter === 'all' ? undefined : sourceFilter,
       })
       .then((res) => {
@@ -342,7 +364,7 @@ export default function TransactionsScreen() {
           {accounts.map((acc) => (
             <FilterPill
               key={acc.id}
-              label={acc.bankName}
+              label={acc.customName || acc.bankName}
               small
               active={accountFilter === acc.id}
               onPress={() => setAccountFilter(accountFilter === acc.id ? null : acc.id)}
@@ -404,6 +426,14 @@ export default function TransactionsScreen() {
         stickySectionHeadersEnabled={false}
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.4}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.brandPrimaryDark}
+            colors={[colors.brandPrimaryDark]}
+          />
+        }
         ListEmptyComponent={
           <EmptyState
             title="Nenhuma transação"
@@ -489,9 +519,9 @@ const styles = StyleSheet.create({
   monthCard: { padding: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   chevronBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   monthInfo: { flex: 1, alignItems: 'center' },
-  monthLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  monthNet: { fontSize: 22, fontWeight: '900', marginTop: 4 },
-  monthMeta: { fontSize: 11, marginTop: 2 },
+  monthLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+  monthNet: { fontSize: 22, fontWeight: '900', marginTop: 4, textAlign: 'center' },
+  monthMeta: { fontSize: 11, marginTop: 2, textAlign: 'center' },
   skelLg: { height: 24, width: 140, borderRadius: 6, marginTop: 6 },
   skelSm: { height: 12, width: 180, borderRadius: 4, marginTop: 6 },
   skelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },

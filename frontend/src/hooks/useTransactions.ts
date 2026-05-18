@@ -5,6 +5,7 @@ import type { Transaction } from '@/types/api.types';
 
 export type TransactionFilters = {
   accountId?: string;
+  accountIds?: string[];
   accountType?: 'BANK' | 'CREDIT';
   categoryId?: string;
   startDate?: string;
@@ -23,7 +24,14 @@ export function useTransactions(initialFilters: TransactionFilters = {}) {
     cursor ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
-      const page = await transactionsService.list({ ...filters, cursor: cursor || undefined, limit: 20 });
+      const { accountIds, ...rest } = filters;
+      const params: Record<string, string | number | undefined> = {
+        ...rest,
+        cursor: cursor || undefined,
+        limit: 20,
+      };
+      if (accountIds && accountIds.length > 0) params.accountIds = accountIds.join(',');
+      const page = await transactionsService.list(params);
       setItems((current) => cursor ? [...current, ...page.items] : page.items);
       setNextCursor(page.nextCursor);
     } catch (err) {

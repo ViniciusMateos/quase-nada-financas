@@ -9,6 +9,7 @@ export interface ListFilters {
   cursor?: string;
   limit: number;
   accountId?: string;
+  accountIds?: string[];
   accountType?: 'BANK' | 'CREDIT';
   startDate?: Date;
   endDate?: Date;
@@ -29,6 +30,7 @@ export class TransactionsService {
       userId,
       limit: filters.limit + 1,
       accountId: filters.accountId,
+      accountIds: filters.accountIds,
       accountType: filters.accountType,
       startDate: filters.startDate,
       endDate: filters.endDate,
@@ -45,7 +47,7 @@ export class TransactionsService {
     const items = rows.map((row: any) => ({
       id: row.id,
       accountId: row.bankAccountId,
-      accountName: row.bankAccount?.connectedAccount?.bankName ?? null,
+      accountName: formatBankAccountName(row.bankAccount, row.bankAccount?.connectedAccount),
       accountLogoUrl: row.bankAccount?.connectedAccount?.logoUrl ?? null,
       occurredAt: row.occurredAt.toISOString(),
       description: row.alias ?? row.description,
@@ -70,13 +72,14 @@ export class TransactionsService {
 
   async summary(
     userId: string,
-    filters: { startDate?: Date; endDate?: Date; accountId?: string; accountType?: 'BANK' | 'CREDIT' }
+    filters: { startDate?: Date; endDate?: Date; accountId?: string; accountIds?: string[]; accountType?: 'BANK' | 'CREDIT' }
   ): Promise<{ income: number; expense: number; net: number; count: number }> {
     const r = await this.repo.sumByPeriod({
       userId,
       startDate: filters.startDate,
       endDate: filters.endDate,
       accountId: filters.accountId,
+      accountIds: filters.accountIds,
       accountType: filters.accountType,
     });
     return {
@@ -104,7 +107,7 @@ export class TransactionsService {
       description: row.description,
       categoryName: row.category?.name ?? null,
       categoryIcon: row.category?.icon ?? null,
-      accountName: row.bankAccount?.connectedAccount?.bankName ?? null,
+      accountName: formatBankAccountName(row.bankAccount, row.bankAccount?.connectedAccount),
     }));
   }
 
@@ -324,7 +327,8 @@ const KEYWORD_RULES: Array<{ category: string; keywords: string[] }> = [
   { category: "Mercado", keywords: ["mercado ", "supermercado", "atacad", "carrefour", "extra ", "pão de açúcar", "pao de acucar", "dia ", "assaí", "assai", "verdurão", "hortifruti"] },
   { category: "Restaurantes", keywords: ["restaurant", "lanchon", "burger", "mc donalds", "mcdonalds", "subway", "pizza", "ifood", "rappi", "uber eats", "bar ", "cafeteria", "starbucks", "brigadeiro", "padaria", "doceria", "sorveteria"] },
   { category: "Transporte", keywords: ["uber", "99 ", "99app", "99 ", "cabify", "blablacar", "posto ", "shell", "ipiranga", "ale ", "br mania", "estacionament", "pedagio", "pedágio", "metro ", "metrô"] },
-  { category: "Assinaturas", keywords: ["netflix", "spotify", "disney", "prime video", "amazon prime", "hbo", "globoplay", "deezer", "youtube premium", "apple music", "apple tv", "tim ", "vivo ", "claro ", "oi ", "net ", "internet", "assinatura"] },
+  { category: "Lazer", keywords: ["netflix", "spotify", "disney", "prime video", "amazon prime", "hbo", "globoplay", "deezer", "youtube premium", "apple music", "apple tv"] },
+  { category: "Serviços", keywords: ["tim ", "vivo ", "claro ", "oi ", "net ", "internet", "assinatura"] },
   { category: "Saúde", keywords: ["farmacia", "farmácia", "drogaria", "drogasil", "raia", "pacheco", "ikesaki", "hospital", "clinica", "clínica", "laboratorio", "laboratório", "consulta médica", "consulta medica", "dentista"] },
   { category: "Moradia", keywords: ["aluguel", "condominio", "condomínio", "energia", "enel", "cpfl", "elektro", "agua", "água", "sabesp", "gas ", "gás", "iptu"] },
   { category: "Educação", keywords: ["escola", "faculdade", "universidade", "curso", "livro ", "livraria", "alura", "udemy", "coursera"] },
@@ -361,6 +365,35 @@ function normalizeAmountSign(ptx: PluggyTransaction & { type?: string }): number
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function shortBankSubtype(subtype?: string | null): string {
+  switch (subtype) {
+    case 'CHECKING_ACCOUNT': return 'Conta corrente';
+    case 'SAVINGS_ACCOUNT': return 'Poupança';
+    case 'PREPAID_ACCOUNT': return 'Conta pré-paga';
+    case 'PAYMENT_ACCOUNT': return 'Conta de pagamento';
+    default: return 'Conta';
+  }
+}
+
+function formatBankAccountName(
+  bankAccount?: { name?: string | null; marketingName?: string | null; number?: string | null; type?: string | null; subtype?: string | null } | null,
+  connected?: { bankName?: string | null; customName?: string | null } | null
+): string | null {
+  if (!bankAccount && !connected) return null;
+  const connectorLabel = connected?.customName || connected?.bankName || null;
+  const isCredit = bankAccount?.type === 'CREDIT';
+  const baseAccountLabel = isCredit
+    ? 'Cartão'
+    : shortBankSubtype(bankAccount?.subtype);
+  const number = bankAccount?.number;
+  const suffix = isCredit && number ? ` ·${String(number).slice(-4)}` : '';
+
+  if (connectorLabel) {
+    return `${connectorLabel} · ${baseAccountLabel}${suffix}`;
+  }
+  return `${baseAccountLabel}${suffix}`;
 }
 
 function encodeCursor(payload: CursorPayload): string {

@@ -94,6 +94,11 @@ export default function InstallmentsScreen() {
                   <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>
                     Parcela {it.installmentCurrent}/{it.installmentTotal} · iniciada {formatDate(it.occurredAt)}
                   </Text>
+                  {it.accountName ? (
+                    <Text style={[styles.meta, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                      {it.accountName}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.right}>
                   <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>

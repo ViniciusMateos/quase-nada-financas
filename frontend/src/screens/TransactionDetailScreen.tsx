@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, DeviceEventEmitter, Platform, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, DeviceEventEmitter, Platform, RefreshControl, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { categoryEmoji } from '@/lib/categoryIcons';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters';
 import { transactionsService } from '@/services/transactions.service';
 import { TRANSACTION_UPDATED_EVENT, TransactionUpdatedPayload } from '@/screens/EditTransactionSheet';
+import { CategoryIcon } from '@/ui/CategoryIcon';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { Transaction } from '@/types/api.types';
@@ -24,6 +24,7 @@ export default function TransactionDetailScreen() {
 
   const [similar, setSimilar] = useState<Transaction[]>([]);
   const [similarLoading, setSimilarLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const reloadSimilar = useCallback(() => {
     let alive = true;
@@ -38,6 +39,17 @@ export default function TransactionDetailScreen() {
     return () => {
       alive = false;
     };
+  }, [tx.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        transactionsService.similar(tx.id).then((res) => setSimilar(res.items ?? [])).catch(() => undefined),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
   }, [tx.id]);
 
   useEffect(() => {
@@ -76,11 +88,21 @@ export default function TransactionDetailScreen() {
         rightAction={{ icon: 'create-outline', onPress: openEditor }}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 28 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.brandPrimaryDark}
+            colors={[colors.brandPrimaryDark]}
+          />
+        }
+      >
         <View style={[styles.heroCard, { backgroundColor: colors.brandSurface, borderRadius: radius.xl, ...shadows.card }]}>
-          <View style={[styles.heroIcon, { backgroundColor: colors.brandPrimaryTint }]}>
-            <Text style={styles.heroIconText}>{categoryEmoji(tx.categoryIcon)}</Text>
-          </View>
+          <CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor || colors.brandPrimary} size={28} />
+          <View style={{ height: 12 }} />
           <Text style={[styles.value, { color: positive ? colors.brandTextPositive : colors.brandTextNegative }]}>
             {positive ? '+' : '-'}{formatCurrency(Math.abs(tx.amount))}
           </Text>
@@ -95,7 +117,7 @@ export default function TransactionDetailScreen() {
             label="Categoria"
             value={tx.categoryName || 'Sem categoria'}
             colors={colors}
-            icon={categoryEmoji(tx.categoryIcon)}
+            iconNode={<CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor || colors.brandPrimary} size={14} padded={false} />}
           />
           <Divider colors={colors} />
           <Detail
@@ -151,12 +173,12 @@ export default function TransactionDetailScreen() {
   );
 }
 
-function Detail({ label, value, colors, icon }: { label: string; value: string; colors: any; icon?: string }) {
+function Detail({ label, value, colors, iconNode }: { label: string; value: string; colors: any; iconNode?: React.ReactNode }) {
   return (
     <View style={styles.detailRow}>
       <Text style={[styles.detailLabel, { color: colors.brandTextSecondary }]}>{label}</Text>
       <View style={styles.detailValueWrap}>
-        {icon ? <Text style={styles.detailIcon}>{icon}</Text> : null}
+        {iconNode}
         <Text style={[styles.detailValue, { color: colors.brandTextPrimary }]}>{value}</Text>
       </View>
     </View>

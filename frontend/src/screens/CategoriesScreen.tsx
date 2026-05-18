@@ -7,7 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
-import { categoryEmoji } from '@/lib/categoryIcons';
+import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, CategoryStatsResponse } from '@/services/analytics.service';
@@ -283,9 +283,7 @@ export default function CategoriesScreen() {
                 ]}
               >
                 <View style={styles.catRow}>
-                  <View style={[styles.catIcon, { backgroundColor: colors.brandPrimaryTint }]}>
-                    <Text style={styles.catIconText}>{categoryEmoji(cat.categoryIcon)}</Text>
-                  </View>
+                  <CategoryIcon icon={cat.categoryIcon} color={cat.categoryColor || colors.brandPrimary} size={24} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.catName, { color: colors.brandTextPrimary }]} numberOfLines={1}>
                       {cat.categoryName}

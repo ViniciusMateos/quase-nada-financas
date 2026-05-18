@@ -52,6 +52,7 @@ export type Installment = {
   progress: number;
   occurredAt: string;
   estimatedLastDate: string | null;
+  accountName: string | null;
 };
 
 export type InstallmentsResponse = {

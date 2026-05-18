@@ -77,6 +77,11 @@ export function useAccounts() {
     }
   }, [load]);
 
+  const rename = useCallback(async (id: string, customName: string | null) => {
+    await accountsService.rename(id, customName);
+    await load();
+  }, [load]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -88,6 +93,7 @@ export function useAccounts() {
     busyId,
     load,
     remove,
-    sync
+    sync,
+    rename
   };
 }

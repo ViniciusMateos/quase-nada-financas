@@ -39,6 +39,22 @@ export async function accountsRoutes(app: FastifyInstance): Promise<void> {
     handler: controller.sync,
   });
 
+  app.patch("/:connectedAccountId", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["connectedAccountId"],
+        properties: { connectedAccountId: { type: "string", format: "uuid" } },
+      },
+      body: {
+        type: "object",
+        properties: { customName: { type: ["string", "null"], maxLength: 80 } },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.rename,
+  });
+
   // Pluggy sub-routes
   app.post("/../pluggy/connect-token", { handler: controller.pluggyConnectToken });
 

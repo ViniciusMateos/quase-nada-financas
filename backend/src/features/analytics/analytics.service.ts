@@ -47,6 +47,7 @@ export interface InstallmentItem {
   progress: number;
   occurredAt: string;
   estimatedLastDate: string | null;
+  accountName: string | null;
 }
 
 export class AnalyticsService {
@@ -242,6 +243,15 @@ export class AnalyticsService {
         installmentCurrent: true,
         installmentTotal: true,
         occurredAt: true,
+        bankAccount: {
+          select: {
+            type: true,
+            number: true,
+            marketingName: true,
+            name: true,
+            connectedAccount: { select: { bankName: true, customName: true } },
+          },
+        },
       },
     });
 
@@ -274,6 +284,12 @@ export class AnalyticsService {
       const estimatedLast = new Date(lastDate);
       estimatedLast.setMonth(estimatedLast.getMonth() + monthsLeft);
 
+      const ba = latest.bankAccount;
+      const conn = ba?.connectedAccount;
+      const bankLabel = conn?.customName || conn?.bankName || null;
+      const cardSuffix = ba?.type === 'CREDIT' && ba?.number ? ` ·${String(ba.number).slice(-4)}` : '';
+      const accountName = bankLabel ? `${bankLabel}${cardSuffix}` : null;
+
       items.push({
         id: latest.id,
         description: latest.description,
@@ -287,6 +303,7 @@ export class AnalyticsService {
         progress,
         occurredAt: latest.occurredAt.toISOString(),
         estimatedLastDate: monthsLeft > 0 ? estimatedLast.toISOString() : null,
+        accountName,
       });
       totalPaid += paidAmount;
       totalRemaining += remaining;

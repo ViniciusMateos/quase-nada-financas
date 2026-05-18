@@ -54,13 +54,13 @@ export class DashboardService {
         amount: true,
         merchantName: true,
         categoryId: true,
-        category: { select: { name: true, icon: true } },
+        category: { select: { name: true, icon: true, color: true } },
       },
     });
 
     let monthlyIncome = 0;
     let monthlyExpenses = 0;
-    const byCategoryMap = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string | null; total: number }>();
+    const byCategoryMap = new Map<string, { categoryId: string; categoryName: string; categoryIcon: string | null; categoryColor: string | null; total: number }>();
     const merchantMap = new Map<string, number>();
 
     for (const tx of monthTxs) {
@@ -73,10 +73,12 @@ export class DashboardService {
           const prev = byCategoryMap.get(key);
           const categoryName = tx.category?.name ?? "Sem categoria";
           const categoryIcon = tx.category?.icon ?? null;
+          const categoryColor = tx.category?.color ?? null;
           byCategoryMap.set(key, {
             categoryId: key,
             categoryName,
             categoryIcon,
+            categoryColor,
             total: (prev?.total ?? 0) + Math.abs(tx.amount),
           });
         }

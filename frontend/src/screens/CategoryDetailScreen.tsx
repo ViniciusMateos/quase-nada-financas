@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTheme } from '@/contexts/ThemeContext';
-import { categoryEmoji } from '@/lib/categoryIcons';
+import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { transactionsService } from '@/services/transactions.service';
@@ -22,6 +22,7 @@ export default function CategoryDetailScreen() {
     categoryId,
     categoryName = 'Categoria',
     categoryIcon = null,
+    categoryColor = null,
     startDate: routeStart,
     endDate: routeEnd,
     rangeLabel,
@@ -107,9 +108,7 @@ export default function CategoryDetailScreen() {
           { backgroundColor: colors.brandSurface, borderRadius: radius.xl, ...shadows.card },
         ]}
       >
-        <View style={[styles.iconBig, { backgroundColor: colors.brandPrimaryTint }]}>
-          <Text style={styles.iconBigText}>{categoryEmoji(categoryIcon)}</Text>
-        </View>
+        <CategoryIcon icon={categoryIcon} color={categoryColor || colors.brandPrimary} size={36} />
         <Text style={[styles.heroName, { color: colors.brandTextPrimary }]} numberOfLines={1}>
           {categoryName}
         </Text>
@@ -120,11 +119,6 @@ export default function CategoryDetailScreen() {
         <Text style={[styles.heroSub, { color: colors.brandTextSecondary }]}>
           {expenseCount} transaç{expenseCount === 1 ? 'ão' : 'ões'}
         </Text>
-        {refunded > 0 ? (
-          <Text style={[styles.heroRefund, { color: colors.brandTextPositive }]}>
-            Estornos: +{formatCurrency(refunded)}
-          </Text>
-        ) : null}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>

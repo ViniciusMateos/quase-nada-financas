@@ -6,6 +6,7 @@ interface PageQuery {
   userId: string;
   limit: number;
   accountId?: string;
+  accountIds?: string[];
   accountType?: 'BANK' | 'CREDIT';
   startDate?: Date;
   endDate?: Date;
@@ -21,6 +22,7 @@ export class TransactionsRepository {
         : { connectedAccount: { userId: q.userId } },
     };
     if (q.accountId) where.bankAccountId = q.accountId;
+    else if (q.accountIds && q.accountIds.length > 0) where.bankAccountId = { in: q.accountIds };
     if (q.categoryId) {
       where.categoryId = q.categoryId;
     } else {
@@ -110,8 +112,8 @@ export class TransactionsRepository {
       where.merchantName = { equals: matchBy.merchantName, mode: "insensitive" };
     } else if (matchBy.description) {
       const cleaned = matchBy.description.replace(/\s+\d+[\d.,/-]*$/g, "").trim();
-      if (cleaned.length < 4) return 0;
-      where.description = { contains: cleaned.slice(0, 40), mode: "insensitive" };
+      if (cleaned.length === 0) return 0;
+      where.description = { equals: cleaned, mode: "insensitive" };
     } else {
       return 0;
     }
@@ -148,6 +150,7 @@ export class TransactionsRepository {
     startDate?: Date;
     endDate?: Date;
     accountId?: string;
+    accountIds?: string[];
     accountType?: 'BANK' | 'CREDIT';
   }): Promise<{ income: number; expense: number; count: number }> {
     const where: Prisma.TransactionWhereInput = {
@@ -158,6 +161,7 @@ export class TransactionsRepository {
       categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
     };
     if (q.accountId) where.bankAccountId = q.accountId;
+    else if (q.accountIds && q.accountIds.length > 0) where.bankAccountId = { in: q.accountIds };
     if (q.startDate || q.endDate) {
       where.occurredAt = {
         ...(q.startDate ? { gte: q.startDate } : {}),
@@ -196,8 +200,8 @@ export class TransactionsRepository {
     }
     if (description) {
       const cleaned = description.replace(/\s+\d+[\d.,/-]*$/g, "").trim();
-      if (cleaned.length > 3) {
-        orFilters.push({ description: { contains: cleaned.slice(0, 40), mode: "insensitive" } });
+      if (cleaned.length > 0) {
+        orFilters.push({ description: { equals: cleaned, mode: "insensitive" } });
       }
     }
     if (orFilters.length === 0) return [];

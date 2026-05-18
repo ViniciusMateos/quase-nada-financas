@@ -28,6 +28,10 @@ export class AccountsRepository {
     connectedAccountId: string;
     externalId: string;
     type: string;
+    subtype?: string | null;
+    name?: string | null;
+    marketingName?: string | null;
+    number?: string | null;
     balance: number;
     currency: string;
     lastSyncAt: Date;
@@ -41,6 +45,10 @@ export class AccountsRepository {
       },
       update: {
         type: data.type,
+        subtype: data.subtype ?? null,
+        name: data.name ?? null,
+        marketingName: data.marketingName ?? null,
+        number: data.number ?? null,
         balance: data.balance,
         currency: data.currency,
         lastSyncAt: data.lastSyncAt,
@@ -76,6 +84,13 @@ export class AccountsRepository {
 
   async deleteConnectedAccount(id: string): Promise<void> {
     await prisma.connectedAccount.delete({ where: { id } });
+  }
+
+  async setCustomName(id: string, customName: string | null): Promise<ConnectedAccount> {
+    return prisma.connectedAccount.update({
+      where: { id },
+      data: { customName },
+    });
   }
 
   async touchConnectedAccount(id: string): Promise<void> {

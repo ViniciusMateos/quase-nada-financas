@@ -6,12 +6,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDashboard } from '@/hooks/useDashboard';
+import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-import { categoryEmoji } from '@/lib/categoryIcons';
+import { CategoryIcon } from '@/ui/CategoryIcon';
 import { BankBadge } from '@/ui/BankBadge';
 import { ErrorState, Skeleton } from '@/ui/States';
 import { TransactionCard } from '@/ui/Cards';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
+
+function shortSubtype(subtype?: string | null): string | null {
+  switch (subtype) {
+    case 'CHECKING_ACCOUNT': return 'Corrente';
+    case 'SAVINGS_ACCOUNT': return 'Poupança';
+    case 'PREPAID_ACCOUNT': return 'Pré-paga';
+    case 'PAYMENT_ACCOUNT': return 'Pagamento';
+    default: return null;
+  }
+}
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
@@ -21,28 +32,49 @@ export default function DashboardScreen() {
   const { items: accounts } = useAccounts();
 
   const { bankCards, creditCards, totalChecking, totalCredit } = useMemo(() => {
-    type MiniCard = { id: string; bankName: string; balance: number; logoUrl?: string | null; primaryColor?: string | null };
+    type MiniCard = { id: string; bankName: string; balance: number; logoUrl?: string | null; primaryColor?: string | null; isBrand?: boolean };
     const bank: MiniCard[] = [];
     const credit: MiniCard[] = [];
     let totBank = 0;
     let totCredit = 0;
+    type Entry = { card: MiniCard; isCredit: boolean; subtype?: string | null; institution: string };
+    const entries: Entry[] = [];
     for (const acc of accounts ?? []) {
+      const displayName = acc.customName || acc.bankName;
+      const logo = effectiveLogoUrl(acc);
+      const tint = effectivePrimaryColor(acc);
       for (const ba of acc.bankAccounts ?? []) {
-        const card: MiniCard = {
-          id: ba.id,
-          bankName: acc.bankName,
-          balance: ba.balance,
-          logoUrl: acc.logoUrl,
-          primaryColor: acc.primaryColor,
-        };
-        if (ba.type === 'CREDIT') {
-          credit.push(card);
-          totCredit += ba.balance;
-        } else {
-          bank.push(card);
-          totBank += ba.balance;
-        }
+        const isCredit = ba.type === 'CREDIT';
+        const cardLabel = isCredit && ba.number
+          ? `${displayName} ·${String(ba.number).slice(-4)}`
+          : displayName;
+        entries.push({
+          isCredit,
+          subtype: ba.subtype ?? null,
+          institution: displayName,
+          card: {
+            id: ba.id,
+            bankName: cardLabel,
+            balance: ba.balance,
+            logoUrl: logo,
+            primaryColor: tint,
+            isBrand: !!acc.customName,
+          },
+        });
+        if (isCredit) totCredit += ba.balance;
+        else totBank += ba.balance;
       }
+    }
+    // Se há múltiplas BANK accounts da mesma instituição, adiciona subtipo curto
+    const bankCountByInst = new Map<string, number>();
+    for (const e of entries) if (!e.isCredit) bankCountByInst.set(e.institution, (bankCountByInst.get(e.institution) ?? 0) + 1);
+    for (const e of entries) {
+      if (!e.isCredit && (bankCountByInst.get(e.institution) ?? 0) > 1) {
+        const sub = shortSubtype(e.subtype);
+        if (sub) e.card.bankName = `${e.institution} · ${sub}`;
+      }
+      if (e.isCredit) credit.push(e.card);
+      else bank.push(e.card);
     }
     return { bankCards: bank, creditCards: credit, totalChecking: totBank, totalCredit: totCredit };
   }, [accounts]);
@@ -126,7 +158,7 @@ export default function DashboardScreen() {
                 key={b.id}
                 style={[styles.miniCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
               >
-                <BankBadge bankName={b.bankName} logoUrl={b.logoUrl} primaryColor={b.primaryColor} size={36} />
+                <BankBadge bankName={b.bankName} logoUrl={b.logoUrl} primaryColor={b.primaryColor} size={36} variant={b.isBrand ? 'filled' : 'padded'} />
                 <Text style={[styles.miniCardLabel, { color: colors.brandTextSecondary }]} numberOfLines={1}>
                   {b.bankName}
                 </Text>
@@ -149,7 +181,7 @@ export default function DashboardScreen() {
                 style={[styles.miniCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
               >
                 <View style={styles.miniCardBadgeWrap}>
-                  <BankBadge bankName={c.bankName} logoUrl={c.logoUrl} primaryColor={c.primaryColor} size={36} />
+                  <BankBadge bankName={c.bankName} logoUrl={c.logoUrl} primaryColor={c.primaryColor} size={36} variant={c.isBrand ? 'filled' : 'padded'} />
                   <View style={[styles.miniCardBadgeCorner, { backgroundColor: colors.brandError }]}>
                     <Ionicons name="card" size={10} color="#FFFFFF" />
                   </View>
@@ -202,9 +234,7 @@ export default function DashboardScreen() {
               ]}
             >
               <View style={styles.categoryLeft}>
-                <View style={[styles.categoryIcon, { backgroundColor: colors.brandPrimaryTint }]}>
-                  <Text style={styles.categoryIconText}>{categoryEmoji(cat.categoryIcon)}</Text>
-                </View>
+                <CategoryIcon icon={cat.categoryIcon} color={cat.categoryColor || colors.brandPrimary} size={20} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.categoryName, { color: colors.brandTextPrimary }]}>
                     {cat.categoryName || 'Categoria'}

@@ -5,10 +5,17 @@ interface ListQuery {
   cursor?: string;
   limit?: number;
   accountId?: string;
+  accountIds?: string;
   accountType?: 'BANK' | 'CREDIT';
   startDate?: string;
   endDate?: string;
   categoryId?: string;
+}
+
+function parseAccountIds(csv?: string): string[] | undefined {
+  if (!csv) return undefined;
+  const ids = csv.split(",").map((s) => s.trim()).filter(Boolean);
+  return ids.length > 0 ? ids : undefined;
 }
 interface UpdateCategoryParams { transactionId: string }
 interface UpdateCategoryBody { categoryId: string; createRule?: boolean }
@@ -27,6 +34,7 @@ export class TransactionsController {
       cursor: req.query.cursor,
       limit: req.query.limit ?? 30,
       accountId: req.query.accountId,
+      accountIds: parseAccountIds(req.query.accountIds),
       accountType: req.query.accountType,
       startDate: req.query.startDate ? new Date(req.query.startDate) : undefined,
       endDate: req.query.endDate ? new Date(req.query.endDate) : undefined,
@@ -51,6 +59,7 @@ export class TransactionsController {
   summary = async (req: FastifyRequest<{ Querystring: ListQuery }>, reply: FastifyReply) => {
     const result = await this.service.summary(req.userId, {
       accountId: req.query.accountId,
+      accountIds: parseAccountIds(req.query.accountIds),
       accountType: req.query.accountType,
       startDate: req.query.startDate ? new Date(req.query.startDate) : undefined,
       endDate: req.query.endDate ? new Date(req.query.endDate) : undefined,

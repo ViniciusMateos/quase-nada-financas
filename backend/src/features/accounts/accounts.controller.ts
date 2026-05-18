@@ -5,6 +5,7 @@ interface ListQuery { forceSync?: boolean }
 interface IdParams { connectedAccountId: string }
 interface CallbackBody { itemId: string }
 interface ConnectTokenBody { oauthRedirectUri?: string }
+interface RenameBody { customName: string | null }
 
 export class AccountsController {
   private readonly service = new AccountsService();
@@ -32,5 +33,10 @@ export class AccountsController {
   pluggyCallback = async (req: FastifyRequest<{ Body: CallbackBody }>, reply: FastifyReply) => {
     const result = await this.service.handlePluggyCallback(req.userId, req.body.itemId);
     return reply.status(201).send(result);
+  };
+
+  rename = async (req: FastifyRequest<{ Params: IdParams; Body: RenameBody }>, reply: FastifyReply) => {
+    const updated = await this.service.renameAccount(req.userId, req.params.connectedAccountId, req.body.customName);
+    return reply.send(updated);
   };
 }

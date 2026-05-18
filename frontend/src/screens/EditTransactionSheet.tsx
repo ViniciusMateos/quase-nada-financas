@@ -3,7 +3,7 @@ import { DeviceEventEmitter, Pressable, ScrollView, StyleSheet, Text, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { categoryEmoji } from '@/lib/categoryIcons';
+import { CategoryIcon } from '@/ui/CategoryIcon';
 import { normalizeError } from '@/lib/errorMap';
 import { categoriesService } from '@/services/categories.service';
 import { transactionsService } from '@/services/transactions.service';
@@ -89,7 +89,7 @@ export default function EditTransactionSheet() {
 
   return (
     <BottomSheet onClose={() => navigation.goBack()}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Editar transação</Text>
         <Text style={[styles.helper, { color: colors.brandTextSecondary }]}>
           As mudanças se aplicam a todas as transações parecidas (mesmo estabelecimento).
@@ -137,13 +137,13 @@ export default function EditTransactionSheet() {
                 onPress={() => setSelectedCategory(cat.id)}
                 disabled={saving}
               >
-                <Text style={styles.badgeIcon}>{categoryEmoji(cat.icon)}</Text>
+                <CategoryIcon icon={cat.icon} color={cat.color || colors.brandPrimary} size={22} />
                 <Text
                   style={[
                     styles.badgeText,
                     { color: isSelected ? colors.brandPrimaryDark : colors.brandTextSecondary },
                   ]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {cat.name}
                 </Text>
@@ -235,17 +235,17 @@ const styles = StyleSheet.create({
   helperTiny: { fontSize: 11, marginTop: 6 },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   badge: {
-    width: '23.5%',
-    minHeight: 78,
+    width: '31.5%',
+    minHeight: 86,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    gap: 3,
-    paddingVertical: 8,
+    gap: 4,
+    paddingVertical: 10,
     paddingHorizontal: 4,
   },
-  badgeIcon: { fontSize: 22 },
-  badgeText: { fontSize: 10, textAlign: 'center', fontWeight: '600' },
+  badgeIcon: { fontSize: 24 },
+  badgeText: { fontSize: 11, textAlign: 'center', fontWeight: '600', lineHeight: 14 },
   subRow: { flexDirection: 'row', gap: 8 },
   subOpt: {
     flex: 1,

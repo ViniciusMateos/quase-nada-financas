@@ -22,7 +22,7 @@ export type UpdateTransactionResult = {
 export const transactionsService = {
   list: (params: Record<string, string | number | undefined>) =>
     apiClient.get<unknown, PaginatedTransactions>('/transactions', { params }),
-  summary: (params: { startDate?: string; endDate?: string; accountId?: string; accountType?: 'BANK' | 'CREDIT' }) =>
+  summary: (params: { startDate?: string; endDate?: string; accountId?: string; accountIds?: string; accountType?: 'BANK' | 'CREDIT' }) =>
     apiClient.get<unknown, TransactionsSummary>('/transactions/summary', { params }),
   similar: (transactionId: string) =>
     apiClient.get<unknown, { items: Transaction[] }>(`/transactions/${transactionId}/similar`),

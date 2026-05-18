@@ -7,6 +7,10 @@ import { logger } from "../lib/logger.js";
 export interface PluggyAccount {
   id: string;
   type?: string;
+  subtype?: string;
+  name?: string;
+  marketingName?: string;
+  number?: string;
   balance?: number;
   currencyCode?: string;
 }

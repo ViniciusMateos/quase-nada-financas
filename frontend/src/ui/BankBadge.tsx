@@ -6,6 +6,12 @@ type Props = {
   logoUrl?: string | null;
   primaryColor?: string | null;
   size?: number;
+  /**
+   * 'filled': logo cobre toda a bolinha sem padding (use quando o próprio SVG
+   * já vem com fundo da cor do banco, ex: Nubank roxo).
+   * 'padded' (default): padding interno + cor de fundo da bolinha.
+   */
+  variant?: 'filled' | 'padded';
 };
 
 /**
@@ -64,11 +70,23 @@ function getInitials(name: string): string {
   return '??';
 }
 
-export function BankBadge({ bankName, logoUrl, primaryColor, size = 40 }: Props) {
+export function BankBadge({ bankName, logoUrl, primaryColor, size = 40, variant = 'padded' }: Props) {
   const name = (bankName ?? '').trim();
 
   if (logoUrl) {
     const safeUrl = toRenderableImageUrl(logoUrl, size);
+    if (variant === 'filled') {
+      // Logo cobre toda a bolinha — usado quando o próprio SVG já tem fundo.
+      return (
+        <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#FFFFFF' }]}>
+          <Image
+            source={{ uri: safeUrl }}
+            style={{ width: size, height: size }}
+            resizeMode="cover"
+          />
+        </View>
+      );
+    }
     const tint = primaryColor ? `#${primaryColor.replace(/^#/, '')}` : '#0F0F12';
     return (
       <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, backgroundColor: tint, overflow: 'hidden', padding: 2 }]}>

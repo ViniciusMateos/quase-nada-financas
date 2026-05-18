@@ -3,6 +3,7 @@ import { PluggyClient } from "../../integrations/pluggy.client.js";
 import { TransactionsService } from "../transactions/transactions.service.js";
 import { redis } from "../../lib/redis.js";
 import { Errors } from "../../lib/errors.js";
+import { detectInstitutionName } from "./detect-institution.js";
 
 export class AccountsService {
   private readonly repo = new AccountsRepository();
@@ -32,6 +33,10 @@ export class AccountsService {
         connectedAccountId: connected.id,
         externalId: acc.id,
         type: acc.type ?? "UNKNOWN",
+        subtype: acc.subtype ?? null,
+        name: acc.name ?? null,
+        marketingName: acc.marketingName ?? null,
+        number: acc.number ?? null,
         balance: acc.balance ?? 0,
         currency: acc.currencyCode ?? "BRL",
         lastSyncAt: new Date(),
@@ -41,6 +46,11 @@ export class AccountsService {
       const since = new Date(Date.now() - 90 * 86_400_000);
       const txs = await this.pluggy.listTransactions(acc.id, since);
       await this.txService.ingestTransactions(userId, bankAccount.id, txs);
+    }
+
+    if (!connected.customName) {
+      const detected = detectInstitutionName(accounts);
+      if (detected) await this.repo.setCustomName(connected.id, detected);
     }
 
     await this.invalidateDashboardCache(userId);
@@ -94,6 +104,10 @@ export class AccountsService {
         connectedAccountId: conn.id,
         externalId: acc.id,
         type: acc.type ?? "UNKNOWN",
+        subtype: acc.subtype ?? null,
+        name: acc.name ?? null,
+        marketingName: acc.marketingName ?? null,
+        number: acc.number ?? null,
         balance: acc.balance ?? 0,
         currency: acc.currencyCode ?? "BRL",
         lastSyncAt: new Date(),
@@ -104,9 +118,21 @@ export class AccountsService {
       totalNewTx += ingested;
     }
 
+    if (!conn.customName) {
+      const detected = detectInstitutionName(remoteAccounts);
+      if (detected) await this.repo.setCustomName(conn.id, detected);
+    }
+
     await this.repo.touchConnectedAccount(conn.id);
     await this.invalidateDashboardCache(userId);
     return { syncedAt: new Date().toISOString(), newTransactions: totalNewTx };
+  }
+
+  async renameAccount(userId: string, connectedAccountId: string, customName: string | null) {
+    const conn = await this.repo.findConnectedAccountById(connectedAccountId);
+    if (!conn || conn.userId !== userId) throw Errors.NotFound("Conta não encontrada");
+    const trimmed = customName?.trim();
+    return this.repo.setCustomName(connectedAccountId, trimmed ? trimmed : null);
   }
 
   private async invalidateDashboardCache(userId: string): Promise<void> {

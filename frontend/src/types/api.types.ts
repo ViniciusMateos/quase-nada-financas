@@ -8,6 +8,10 @@ export type BankAccount = {
   connectedAccountId: string;
   externalId: string;
   type: 'BANK' | 'CREDIT' | string;
+  subtype?: string | null;
+  name?: string | null;
+  marketingName?: string | null;
+  number?: string | null;
   balance: number;
   currency: 'BRL';
   lastSyncAt: string | null;
@@ -15,6 +19,7 @@ export type BankAccount = {
 export type Account = {
   id: string;
   bankName: string;
+  customName?: string | null;
   logoUrl?: string | null;
   primaryColor?: string | null;
   type?: string;
@@ -50,7 +55,7 @@ export type Dashboard = {
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
-  topCategories: Array<{ categoryId: string; categoryName: string; categoryIcon: string | null; total: number; percentage: number }>;
+  topCategories: Array<{ categoryId: string; categoryName: string; categoryIcon: string | null; categoryColor: string | null; total: number; percentage: number }>;
   recentTransactions: Transaction[];
 };
 export type PaginatedTransactions = { items: Transaction[]; nextCursor: string | null };

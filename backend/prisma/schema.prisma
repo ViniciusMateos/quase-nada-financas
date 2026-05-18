@@ -40,6 +40,7 @@ model ConnectedAccount {
   userId           String
   pluggyItemId     String        @unique
   bankName         String
+  customName       String?
   logoUrl          String?
   primaryColor     String?
   consentExpiresAt DateTime?
@@ -57,6 +58,10 @@ model BankAccount {
   connectedAccountId String
   externalId         String
   type               String
+  subtype            String?
+  name               String?
+  marketingName      String?
+  number             String?
   balance            Float
   currency           String           @default("BRL")
   lastSyncAt         DateTime?
