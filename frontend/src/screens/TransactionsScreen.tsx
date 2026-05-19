@@ -8,6 +8,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency } from '@/lib/formatters';
@@ -29,6 +30,8 @@ export default function TransactionsScreen() {
   const { width: screenW } = useWindowDimensions();
   const { items, loading, loadingMore, error, reload, loadMore, setFilters } = useTransactions({});
   const { items: accounts } = useAccounts();
+
+  useFocusRefresh(reload);
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');

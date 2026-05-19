@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, SubscriptionsResponse } from '@/services/analytics.service';
@@ -31,6 +32,8 @@ export default function SubscriptionsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusRefresh(() => load('refresh'));
 
   if (loading) {
     return (

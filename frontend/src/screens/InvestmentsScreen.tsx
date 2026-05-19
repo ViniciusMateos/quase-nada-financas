@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useInvestments } from '@/hooks/useInvestments';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency } from '@/lib/formatters';
 import { AssetRow } from '@/ui/Cards';
@@ -12,6 +13,8 @@ export default function InvestmentsScreen() {
   const navigation = useNavigation<any>();
   const { colors, radius, shadows } = useTheme();
   const { wallet, quote, loading, error, reload } = useInvestments('BTC');
+
+  useFocusRefresh(reload);
 
   if (loading) {
     return (

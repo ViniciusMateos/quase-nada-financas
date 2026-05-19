@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
@@ -127,6 +128,8 @@ export default function CategoriesScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusRefresh(() => load('refresh'));
 
   if (loading && !data) {
     return (

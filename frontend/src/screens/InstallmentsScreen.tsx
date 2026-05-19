@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, InstallmentsResponse } from '@/services/analytics.service';
@@ -32,6 +33,8 @@ export default function InstallmentsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusRefresh(() => load('refresh'));
 
   if (loading) {
     return (

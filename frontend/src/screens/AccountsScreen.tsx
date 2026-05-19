@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { accountsService } from '@/services/accounts.service';
@@ -15,6 +16,8 @@ export default function AccountsScreen() {
   const { colors } = useTheme();
   const { items, loading, error, load, remove, sync, rename } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
+
+  useFocusRefresh(load);
 
   const accounts = Array.isArray(items) ? items : [];
 
