@@ -7,9 +7,9 @@ type Props = {
   primaryColor?: string | null;
   size?: number;
   /**
-   * 'filled': logo cobre toda a bolinha sem padding (use quando o próprio SVG
-   * já vem com fundo da cor do banco, ex: Nubank roxo).
-   * 'padded' (default): padding interno + cor de fundo da bolinha.
+   * Mantido por compatibilidade com callers antigos — atualmente ignorado.
+   * Todos os bancos renderizam como squircle preenchido. Padding interno
+   * é controlado pela lista `PADDED_FILL` abaixo (hoje só Mercado Pago).
    */
   variant?: 'filled' | 'padded';
 };
@@ -28,10 +28,11 @@ function toRenderableImageUrl(url: string, size: number): string {
 }
 
 /**
- * Bancos cujo logo do Pluggy já vem com fundo próprio bem definido — fica
- * feio com padding+tint do variant 'padded'. Forçamos 'filled' sempre.
+ * Bancos cujo logo precisa de respiro interno (padding) — o SVG do conector
+ * vem grudado nas bordas e fica feio se cobrir 100% do squircle.
+ * Demais bancos: logo cobre todo o squircle sem padding.
  */
-const ALWAYS_FILLED: RegExp[] = [
+const PADDED_FILL: RegExp[] = [
   /mercado pago/i,
 ];
 
@@ -78,32 +79,38 @@ function getInitials(name: string): string {
   return '??';
 }
 
-export function BankBadge({ bankName, logoUrl, primaryColor, size = 40, variant = 'padded' }: Props) {
+// Squircle estilo ícone de app iOS — cantos arredondados, não círculo.
+const squircleRadius = (size: number) => Math.round(size * 0.28);
+
+export function BankBadge({ bankName, logoUrl, size = 40 }: Props) {
   const name = (bankName ?? '').trim();
-  const effectiveVariant: 'filled' | 'padded' =
-    variant === 'filled' || ALWAYS_FILLED.some((re) => re.test(name)) ? 'filled' : 'padded';
+  const radius = squircleRadius(size);
+  const needsPadding = PADDED_FILL.some((re) => re.test(name));
 
   if (logoUrl) {
     const safeUrl = toRenderableImageUrl(logoUrl, size);
-    if (effectiveVariant === 'filled') {
-      // Logo cobre toda a bolinha — usado quando o próprio SVG já tem fundo.
+    if (needsPadding) {
+      // Logo com respiro: padding interno + fundo branco. Pra bancos cujo
+      // SVG cola nas bordas (Mercado Pago).
+      const innerPad = Math.round(size * 0.12);
+      const innerSize = size - innerPad * 2;
       return (
-        <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#FFFFFF' }]}>
+        <View style={[styles.box, { width: size, height: size, borderRadius: radius, overflow: 'hidden', backgroundColor: '#FFFFFF', padding: innerPad }]}>
           <Image
             source={{ uri: safeUrl }}
-            style={{ width: size, height: size }}
-            resizeMode="cover"
+            style={{ width: innerSize, height: innerSize }}
+            resizeMode="contain"
           />
         </View>
       );
     }
-    const tint = primaryColor ? `#${primaryColor.replace(/^#/, '')}` : '#0F0F12';
+    // Padrão: logo cobre todo o squircle, sem padding.
     return (
-      <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, backgroundColor: tint, overflow: 'hidden', padding: 2 }]}>
+      <View style={[styles.box, { width: size, height: size, borderRadius: radius, overflow: 'hidden', backgroundColor: '#FFFFFF' }]}>
         <Image
           source={{ uri: safeUrl }}
-          style={{ width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 }}
-          resizeMode="contain"
+          style={{ width: size, height: size }}
+          resizeMode="cover"
         />
       </View>
     );
@@ -111,18 +118,19 @@ export function BankBadge({ bankName, logoUrl, primaryColor, size = 40, variant 
 
   if (!name) {
     return (
-      <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, backgroundColor: '#E5E7EB' }]}>
+      <View style={[styles.box, { width: size, height: size, borderRadius: radius, backgroundColor: '#E5E7EB' }]}>
         <Ionicons name="business-outline" size={Math.round(size * 0.5)} color="#6B7280" />
       </View>
     );
   }
 
+  // Fallback: sem logo, mostra iniciais sobre fundo da marca.
   const preset = BANK_COLORS.find((b) => b.match.test(name));
   const palette = preset ?? pickFallback(name);
   const initials = preset?.initials ?? getInitials(name);
 
   return (
-    <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, backgroundColor: palette.bg }]}>
+    <View style={[styles.box, { width: size, height: size, borderRadius: radius, backgroundColor: palette.bg }]}>
       <Text style={[styles.initials, { color: palette.fg, fontSize: Math.round(size * 0.36) }]}>
         {initials}
       </Text>
