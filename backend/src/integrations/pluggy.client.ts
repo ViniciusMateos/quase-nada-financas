@@ -4,6 +4,17 @@ import { env } from "../config/env.js";
 import { Errors } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 
+export interface PluggyCreditData {
+  level?: string;
+  brand?: string;
+  balanceCloseDate?: string;
+  balanceDueDate?: string;
+  availableCreditLimit?: number;
+  creditLimit?: number;
+  minimumPayment?: number;
+  isPaid?: boolean;
+}
+
 export interface PluggyAccount {
   id: string;
   type?: string;
@@ -13,6 +24,7 @@ export interface PluggyAccount {
   number?: string;
   balance?: number;
   currencyCode?: string;
+  creditData?: PluggyCreditData;
 }
 
 export interface PluggyTransaction {

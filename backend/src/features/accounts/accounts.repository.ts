@@ -35,6 +35,8 @@ export class AccountsRepository {
     balance: number;
     currency: string;
     lastSyncAt: Date;
+    creditCloseDate?: Date | null;
+    creditDueDate?: Date | null;
   }): Promise<BankAccount> {
     return prisma.bankAccount.upsert({
       where: {
@@ -52,6 +54,8 @@ export class AccountsRepository {
         balance: data.balance,
         currency: data.currency,
         lastSyncAt: data.lastSyncAt,
+        creditCloseDate: data.creditCloseDate ?? null,
+        creditDueDate: data.creditDueDate ?? null,
       },
       create: data,
     });

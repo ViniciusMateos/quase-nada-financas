@@ -65,6 +65,10 @@ model BankAccount {
   balance            Float
   currency           String           @default("BRL")
   lastSyncAt         DateTime?
+  // Cartão de crédito: próxima data de fechamento e vencimento (vem do creditData da Pluggy).
+  // Usado para calcular a fatura aberta no dashboard.
+  creditCloseDate    DateTime?
+  creditDueDate      DateTime?
   connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
   transactions       Transaction[]
 
