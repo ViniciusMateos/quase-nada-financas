@@ -19,8 +19,13 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
   regras do usuario, MCC e keyword matching.
 - Detecção de assinaturas recorrentes (mensal/anual) com projecao de gasto.
 - Parcelamentos: progresso, valor pago, restante e data estimada da ultima parcela.
+- Estimativa de fatura aberta do cartao em 3 camadas (dia de fechamento
+  configuravel manualmente, ultimo pagamento, balance da Pluggy).
+- Atualizacao automatica entre telas via `DataRefreshContext` —
+  conectou conta, sincronizou, editou transacao? Outras telas
+  refazem fetch sozinhas, sem reiniciar app.
 - Binance: conexao por API key, carteira, cotacoes e ordens com biometria.
-- Tema claro/escuro com `ThemeProvider` e paletas dedicadas.
+- Tema claro/escuro com `ThemeProvider` e paletas dedicadas (fade sem flash).
 - Cache offline para dados principais.
 - Deploy backend com Docker, PostgreSQL, Redis e GitHub Actions.
 - Build iOS interno via EAS `preview`.
