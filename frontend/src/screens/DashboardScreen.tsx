@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { CategoryIcon } from '@/ui/CategoryIcon';
@@ -29,7 +31,11 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, radius, shadows } = useTheme();
   const { data, loading, refreshing, error, refresh, retry } = useDashboard();
-  const { items: accounts } = useAccounts();
+  const { items: accounts, load: reloadAccounts } = useAccounts();
+
+  useFocusRefresh(async () => {
+    await Promise.all([refresh(), reloadAccounts()]);
+  });
 
   const { bankCards, creditCards, totalChecking, totalCredit } = useMemo(() => {
     type MiniCard = { id: string; bankName: string; balance: number; logoUrl?: string | null; primaryColor?: string | null; isBrand?: boolean };
@@ -45,6 +51,11 @@ export default function DashboardScreen() {
       const tint = effectivePrimaryColor(acc);
       for (const ba of acc.bankAccounts ?? []) {
         const isCredit = ba.type === 'CREDIT';
+        // Cartão: usa fatura atual aberta (calculada no backend), não o balance
+        // total que inclui parcelas futuras e ajustes.
+        const displayBalance = isCredit
+          ? ba.currentStatementAmount ?? ba.balance
+          : ba.balance;
         const cardLabel = isCredit && ba.number
           ? `${displayName} ·${String(ba.number).slice(-4)}`
           : displayName;
@@ -55,14 +66,14 @@ export default function DashboardScreen() {
           card: {
             id: ba.id,
             bankName: cardLabel,
-            balance: ba.balance,
+            balance: displayBalance,
             logoUrl: logo,
             primaryColor: tint,
             isBrand: !!acc.customName,
           },
         });
-        if (isCredit) totCredit += ba.balance;
-        else totBank += ba.balance;
+        if (isCredit) totCredit += displayBalance;
+        else totBank += displayBalance;
       }
     }
     // Se há múltiplas BANK accounts da mesma instituição, adiciona subtipo curto
@@ -213,7 +224,7 @@ export default function DashboardScreen() {
         </Pressable>
       ) : null}
 
-      <SectionTitle>Maiores categorias</SectionTitle>
+      <SectionTitle onSeeAll={() => navigation.navigate('Categorias')}>Maiores categorias</SectionTitle>
       {topCategories.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg }]}>
           <Text style={[styles.meta, { color: colors.brandTextSecondary, textAlign: 'center' }]}>
@@ -223,14 +234,25 @@ export default function DashboardScreen() {
       ) : (
         <View style={[styles.groupCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
           {topCategories.map((cat, i) => (
-            <View
+            <Pressable
               key={cat.categoryId ?? cat.categoryName}
-              style={[
+              onPress={() =>
+                cat.categoryId &&
+                navigation.navigate('CategoryDetail', {
+                  categoryId: cat.categoryId,
+                  categoryName: cat.categoryName,
+                  categoryIcon: cat.categoryIcon,
+                  categoryColor: cat.categoryColor,
+                  month: format(new Date(), 'yyyy-MM'),
+                })
+              }
+              style={({ pressed }) => [
                 styles.categoryRow,
                 i < topCategories.length - 1 && {
                   borderBottomWidth: StyleSheet.hairlineWidth,
                   borderBottomColor: colors.brandDivider,
                 },
+                pressed && { opacity: 0.7 },
               ]}
             >
               <View style={styles.categoryLeft}>
@@ -247,12 +269,12 @@ export default function DashboardScreen() {
               <Text style={[styles.categoryAmount, { color: colors.brandTextPrimary }]}>
                 {formatCurrency(cat.total ?? 0)}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       )}
 
-      <SectionTitle>Transações recentes</SectionTitle>
+      <SectionTitle onSeeAll={() => navigation.navigate('Transacoes')}>Transações recentes</SectionTitle>
       {recentTransactions.length === 0 ? (
         <View style={[styles.emptyCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg }]}>
           <Text style={[styles.meta, { color: colors.brandTextSecondary, textAlign: 'center' }]}>
@@ -276,9 +298,19 @@ export default function DashboardScreen() {
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children, onSeeAll }: { children: string; onSeeAll?: () => void }) {
   const { colors } = useTheme();
-  return <Text style={[styles.section, { color: colors.brandTextPrimary }]}>{children}</Text>;
+  if (!onSeeAll) {
+    return <Text style={[styles.section, { color: colors.brandTextPrimary }]}>{children}</Text>;
+  }
+  return (
+    <View style={styles.sectionRow}>
+      <Text style={[styles.section, { color: colors.brandTextPrimary, marginTop: 0, marginBottom: 0 }]}>{children}</Text>
+      <Pressable onPress={onSeeAll} hitSlop={8}>
+        <Text style={[styles.seeAll, { color: colors.brandTextSecondary }]}>Ver tudo →</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 function IncomeExpenseBar({
@@ -344,6 +376,8 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 11, fontWeight: '600' },
   section: { marginTop: 28, marginBottom: 10, fontSize: 18, fontWeight: '800' },
+  sectionRow: { marginTop: 28, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  seeAll: { fontSize: 13, fontWeight: '600' },
   cardsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   miniCard: { flex: 1, minWidth: 130, padding: 14, gap: 6 },
   miniCardIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },

@@ -71,7 +71,10 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
   const { colors, radius, shadows } = useTheme();
   const subAccounts = account.bankAccounts ?? [];
   const bankSum = subAccounts.filter((a) => a.type !== 'CREDIT').reduce((acc, a) => acc + a.balance, 0);
-  const creditSum = subAccounts.filter((a) => a.type === 'CREDIT').reduce((acc, a) => acc + a.balance, 0);
+  // Cartão: usa fatura aberta (calculada no backend), não saldo devedor total.
+  const creditSum = subAccounts
+    .filter((a) => a.type === 'CREDIT')
+    .reduce((acc, a) => acc + (a.currentStatementAmount ?? a.balance), 0);
   const displayBalance = subAccounts.length > 0 ? bankSum : account.balance ?? 0;
   const lastSync = subAccounts.map((a) => a.lastSyncAt).filter(Boolean).sort().pop() ?? account.lastSyncedAt;
   const displayName = account.customName || account.bankName;

@@ -119,16 +119,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={value}>
       {children}
-      {previousBg ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: previousBg, zIndex: 9999 },
-            overlayStyle,
-          ]}
-        />
-      ) : null}
+      {/* Overlay sempre montado pra evitar flash de mount na 1ª troca de tema.
+          backgroundColor é transparent até a primeira troca; opacity é 0 em repouso. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: previousBg ?? 'transparent', zIndex: 9999 },
+          overlayStyle,
+        ]}
+      />
     </ThemeContext.Provider>
   );
 }

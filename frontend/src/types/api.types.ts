@@ -15,6 +15,8 @@ export type BankAccount = {
   balance: number;
   currency: 'BRL';
   lastSyncAt: string | null;
+  /** Fatura atual aberta (só preenchido pra type='CREDIT'). Calculado no backend. */
+  currentStatementAmount?: number;
 };
 export type Account = {
   id: string;

@@ -27,6 +27,14 @@ function toRenderableImageUrl(url: string, size: number): string {
   return `https://images.weserv.nl/?url=${encodeURIComponent(noProtocol)}&output=png&w=${px}&h=${px}&fit=contain`;
 }
 
+/**
+ * Bancos cujo logo do Pluggy já vem com fundo próprio bem definido — fica
+ * feio com padding+tint do variant 'padded'. Forçamos 'filled' sempre.
+ */
+const ALWAYS_FILLED: RegExp[] = [
+  /mercado pago/i,
+];
+
 const BANK_COLORS: Array<{ match: RegExp; bg: string; fg: string; initials?: string }> = [
   { match: /mercado pago|meupluggy|pluggy/i, bg: '#00B0FF', fg: '#FFFFFF', initials: 'MP' },
   { match: /nubank|nu pagamentos/i, bg: '#820AD1', fg: '#FFFFFF', initials: 'Nu' },
@@ -72,10 +80,12 @@ function getInitials(name: string): string {
 
 export function BankBadge({ bankName, logoUrl, primaryColor, size = 40, variant = 'padded' }: Props) {
   const name = (bankName ?? '').trim();
+  const effectiveVariant: 'filled' | 'padded' =
+    variant === 'filled' || ALWAYS_FILLED.some((re) => re.test(name)) ? 'filled' : 'padded';
 
   if (logoUrl) {
     const safeUrl = toRenderableImageUrl(logoUrl, size);
-    if (variant === 'filled') {
+    if (effectiveVariant === 'filled') {
       // Logo cobre toda a bolinha — usado quando o próprio SVG já tem fundo.
       return (
         <View style={[styles.box, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#FFFFFF' }]}>
