@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { palettes, Palette, ThemeMode } from '@/theme/palettes';
 
+const FADE_DURATION_MS = 380;
+
 const STORAGE_KEY = 'qnf:theme-mode';
 
 interface ThemeValue {
@@ -63,8 +65,12 @@ const ThemeContext = createContext<ThemeValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>('dark');
-  const [previousBg, setPreviousBg] = useState<string | null>(null);
-  const fadeOpacity = useSharedValue(0);
+  // 2 overlays empilhados, um por paleta. Sempre montados, opacity 0 em
+  // repouso. Quando o tema troca, ativamos a opacity do overlay com a paleta
+  // ANTERIOR (mascara a UI nova com a cor antiga) e fazemos fade out.
+  // Sem React state na animação → sem 1-frame de delay → sem flash.
+  const lightOverlayOpacity = useSharedValue(0);
+  const darkOverlayOpacity = useSharedValue(0);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
@@ -74,11 +80,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const triggerCrossfade = useCallback(
     (fromMode: ThemeMode) => {
-      setPreviousBg(palettes[fromMode].brandBackground);
-      fadeOpacity.value = 1;
-      fadeOpacity.value = withTiming(0, { duration: 380 });
+      const overlay = fromMode === 'light' ? lightOverlayOpacity : darkOverlayOpacity;
+      overlay.value = 1;
+      overlay.value = withTiming(0, { duration: FADE_DURATION_MS });
     },
-    [fadeOpacity]
+    [lightOverlayOpacity, darkOverlayOpacity]
   );
 
   const setMode = useCallback(
@@ -114,19 +120,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [mode, setMode, toggle]
   );
 
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: fadeOpacity.value }));
+  const lightStyle = useAnimatedStyle(() => ({ opacity: lightOverlayOpacity.value }));
+  const darkStyle = useAnimatedStyle(() => ({ opacity: darkOverlayOpacity.value }));
 
   return (
     <ThemeContext.Provider value={value}>
       {children}
-      {/* Overlay sempre montado pra evitar flash de mount na 1ª troca de tema.
-          backgroundColor é transparent até a primeira troca; opacity é 0 em repouso. */}
       <Animated.View
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFillObject,
-          { backgroundColor: previousBg ?? 'transparent', zIndex: 9999 },
-          overlayStyle,
+          { backgroundColor: palettes.light.brandBackground, zIndex: 9999 },
+          lightStyle,
+        ]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: palettes.dark.brandBackground, zIndex: 9999 },
+          darkStyle,
         ]}
       />
     </ThemeContext.Provider>
