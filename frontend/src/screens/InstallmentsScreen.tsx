@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
@@ -15,6 +16,7 @@ export default function InstallmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshKey = useDataRefreshKey();
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     mode === 'refresh' ? setRefreshing(true) : setLoading(true);
@@ -32,7 +34,7 @@ export default function InstallmentsScreen() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   useFocusRefresh(() => load('refresh'));
 

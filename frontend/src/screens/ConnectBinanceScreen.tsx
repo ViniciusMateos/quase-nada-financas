@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDataRefresh } from '@/contexts/DataRefreshContext';
 import { normalizeError } from '@/lib/errorMap';
 import { binanceService } from '@/services/binance.service';
 import { Button } from '@/ui/Button';
@@ -12,6 +13,7 @@ import { ScreenHeader } from '@/ui/ScreenHeader';
 export default function ConnectBinanceScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const bumpRefresh = useDataRefresh();
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,7 @@ export default function ConnectBinanceScreen() {
     setError(null);
     try {
       await binanceService.connect(apiKey.trim(), apiSecret.trim());
+      bumpRefresh();
       navigation.goBack();
     } catch (err) {
       setError(normalizeError(err).message);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cacheStorage } from '@/lib/cacheStorage';
+import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { normalizeError } from '@/lib/errorMap';
 import { currentMonth } from '@/lib/formatters';
 import { dashboardService } from '@/services/dashboard.service';
@@ -10,6 +11,7 @@ export function useDashboard(month = currentMonth()) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshKey = useDataRefreshKey();
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     mode === 'refresh' ? setRefreshing(true) : setLoading(true);
@@ -28,6 +30,6 @@ export function useDashboard(month = currentMonth()) {
     }
   }, [month]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
   return { data, loading, refreshing, error, refresh: () => load('refresh'), retry: () => load('initial') };
 }

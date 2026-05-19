@@ -3,6 +3,7 @@ import { DeviceEventEmitter, Pressable, ScrollView, StyleSheet, Text, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDataRefresh } from '@/contexts/DataRefreshContext';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { normalizeError } from '@/lib/errorMap';
 import { categoriesService } from '@/services/categories.service';
@@ -33,6 +34,7 @@ export default function EditTransactionSheet() {
   const route = useRoute<any>();
   const { colors, radius } = useTheme();
   const tx = route.params.transaction as Transaction;
+  const bumpRefresh = useDataRefresh();
 
   const [items, setItems] = useState<Category[]>([]);
   const [alias, setAlias] = useState(tx.alias ?? '');
@@ -79,6 +81,7 @@ export default function EditTransactionSheet() {
         affected: res.affectedSimilar,
       };
       DeviceEventEmitter.emit(TRANSACTION_UPDATED_EVENT, payload);
+      bumpRefresh();
       navigation.goBack();
     } catch (err) {
       setError(normalizeError(err).message);

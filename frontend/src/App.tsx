@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { DataRefreshProvider } from '@/contexts/DataRefreshContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { DebugOverlay } from '@/ui/DebugOverlay';
@@ -12,15 +13,17 @@ function AppShell() {
   const { colors } = useTheme();
   return (
     <AuthProvider>
-      <Suspense
-        fallback={
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandBackground }}>
-            <ActivityIndicator color={colors.brandPrimaryDark} />
-          </View>
-        }
-      >
-        <RootNavigator />
-      </Suspense>
+      <DataRefreshProvider>
+        <Suspense
+          fallback={
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandBackground }}>
+              <ActivityIndicator color={colors.brandPrimaryDark} />
+            </View>
+          }
+        >
+          <RootNavigator />
+        </Suspense>
+      </DataRefreshProvider>
     </AuthProvider>
   );
 }

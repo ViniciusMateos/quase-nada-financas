@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { normalizeError } from '@/lib/errorMap';
 import { binanceService } from '@/services/binance.service';
 import type { BinanceWallet, Quote } from '@/types/api.types';
@@ -10,6 +11,7 @@ export function useInvestments(symbol = 'BTC') {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshKey = useDataRefreshKey();
 
   const loadWallet = useCallback(async () => {
     setLoading(true);
@@ -34,7 +36,7 @@ export function useInvestments(symbol = 'BTC') {
     timer.current = setInterval(loadQuote, 5000);
   }, [loadQuote, stopPolling]);
 
-  useEffect(() => { loadWallet(); }, [loadWallet]);
+  useEffect(() => { loadWallet(); }, [loadWallet, refreshKey]);
   useEffect(() => {
     startPolling();
     const sub = AppState.addEventListener('change', (state) => state === 'active' ? startPolling() : stopPolling());

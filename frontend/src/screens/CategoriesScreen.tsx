@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
@@ -29,6 +30,7 @@ export default function CategoriesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshKey = useDataRefreshKey();
 
   const referenceMonth = useMemo(() => addMonths(new Date(), monthOffset), [monthOffset]);
   const monthStart = useMemo(
@@ -127,7 +129,7 @@ export default function CategoriesScreen() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   useFocusRefresh(() => load('refresh'));
 

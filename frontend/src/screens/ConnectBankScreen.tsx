@@ -4,6 +4,7 @@ import { PluggyConnect } from 'react-native-pluggy-connect';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDataRefresh } from '@/contexts/DataRefreshContext';
 import { normalizeError } from '@/lib/errorMap';
 import { pluggyService } from '@/services/pluggy.service';
 import { ErrorState, LoadingOverlay } from '@/ui/States';
@@ -24,6 +25,7 @@ function extractItemId(url: string): string | null {
 export default function ConnectBankScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const bumpRefresh = useDataRefresh();
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -36,13 +38,14 @@ export default function ConnectBankScreen() {
     try {
       setConnecting(true);
       await pluggyService.callback(itemId);
+      bumpRefresh();
       navigation.goBack();
     } catch (err) {
       setError({ title: 'Falha ao concluir', subtitle: normalizeError(err).message });
     } finally {
       setConnecting(false);
     }
-  }, [navigation]);
+  }, [navigation, bumpRefresh]);
 
   const load = useCallback(async () => {
     setLoading(true);
