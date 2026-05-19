@@ -3,6 +3,44 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.3.0] - 2026-05-19
+
+### Added
+
+- Schema: `BankAccount.creditCloseDay` (1-31), configuravel manualmente
+  pelo usuario para cartoes cujo conector Pluggy nao envia
+  `balanceCloseDate` confiavel (ex: Mercado Pago).
+- Endpoint `PATCH /accounts/bank-account/:id/credit-close-day`.
+- `enrichWithCurrentStatement` calcula a fatura aberta em 3 camadas:
+  `creditCloseDay` manual -> data do ultimo "Pagamento de fatura" ->
+  `balance` cru da Pluggy.
+- `DataRefreshContext` no app mobile: bump global que dispara refetch
+  em todos os hooks de dados ao mesmo tempo. Acionado por
+  ConnectBankScreen, ConnectBinanceScreen, EditTransactionSheet e
+  mutators do `useAccounts`.
+- Hook `useFocusRefresh` para refetch ao ganhar foco da tela (rede de
+  seguranca complementar ao DataRefreshContext).
+- UI no Dashboard: cada mini card de cartao mostra "Fecha dia X"
+  editavel (lapis) e icone de info explicando "Fatura estimada".
+- `AccountCard` da tela Contas exibe `currentStatementAmount` no
+  sub-row do cartao (em vez do balance cru) e o mesmo icone de info.
+- Agentes especializados do projeto em `.claude/agents/`:
+  frontend-rn, backend-fastify, pluggy-integration,
+  binance-integration, devops-deploy, qa-reviewer.
+
+### Changed
+
+- `BankBadge` unificado em squircle (cantos arredondados estilo iOS)
+  para todos os bancos. Padding interno reservado a lista
+  `PADDED_FILL` (hoje so Mercado Pago).
+- `ThemeProvider` reescrito com 2 overlays empilhados (um por paleta)
+  para eliminar o flash do fade na 1a e em todas as trocas seguintes.
+
+### Fixed
+
+- Migration `_add_is_subscription_override` que existia so no servidor
+  foi sincronizada para o repo local.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added
