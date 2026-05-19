@@ -6,6 +6,8 @@ interface IdParams { connectedAccountId: string }
 interface CallbackBody { itemId: string }
 interface ConnectTokenBody { oauthRedirectUri?: string }
 interface RenameBody { customName: string | null }
+interface BankAccountIdParams { bankAccountId: string }
+interface CreditCloseDayBody { creditCloseDay: number | null }
 
 export class AccountsController {
   private readonly service = new AccountsService();
@@ -38,5 +40,17 @@ export class AccountsController {
   rename = async (req: FastifyRequest<{ Params: IdParams; Body: RenameBody }>, reply: FastifyReply) => {
     const updated = await this.service.renameAccount(req.userId, req.params.connectedAccountId, req.body.customName);
     return reply.send(updated);
+  };
+
+  setCreditCloseDay = async (
+    req: FastifyRequest<{ Params: BankAccountIdParams; Body: CreditCloseDayBody }>,
+    reply: FastifyReply
+  ) => {
+    const result = await this.service.setCreditCloseDay(
+      req.userId,
+      req.params.bankAccountId,
+      req.body.creditCloseDay
+    );
+    return reply.send(result);
   };
 }

@@ -1,15 +1,18 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDataRefresh } from '@/contexts/DataRefreshContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { normalizeError } from '@/lib/errorMap';
+import { accountsService } from '@/services/accounts.service';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { BankBadge } from '@/ui/BankBadge';
 import { ErrorState, Skeleton } from '@/ui/States';
@@ -33,12 +36,72 @@ export default function DashboardScreen() {
   const { data, loading, refreshing, error, refresh, retry } = useDashboard();
   const { items: accounts, load: reloadAccounts } = useAccounts();
 
+  const bumpRefresh = useDataRefresh();
+
   useFocusRefresh(async () => {
     await Promise.all([refresh(), reloadAccounts()]);
   });
 
+  const showStatementInfo = () =>
+    Alert.alert(
+      'Fatura estimada',
+      'Valores marcados como "fatura estimada" são calculados pela soma das transações do ciclo de faturamento atual. Como o banco geralmente não retorna o valor exato da fatura aberta antes do vencimento, essa informação é parcial e pode não refletir o total final.\n\nPra melhorar a precisão, configure o "dia de fechamento" do cartão tocando no ícone de lápis.',
+      [{ text: 'Entendi' }]
+    );
+
+  const handleEditCloseDay = (bankAccountId: string, current: number | null | undefined) => {
+    Alert.prompt(
+      'Dia de fechamento da fatura',
+      'Em qual dia do mês essa fatura fecha? (1 a 31)',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        ...(current
+          ? [{
+              text: 'Remover',
+              style: 'destructive' as const,
+              onPress: async () => {
+                try {
+                  await accountsService.setCreditCloseDay(bankAccountId, null);
+                  bumpRefresh();
+                } catch (err) {
+                  Alert.alert('Erro', normalizeError(err).message);
+                }
+              },
+            }]
+          : []),
+        {
+          text: 'Salvar',
+          onPress: async (text) => {
+            const n = parseInt((text ?? '').trim(), 10);
+            if (!Number.isInteger(n) || n < 1 || n > 31) {
+              Alert.alert('Inválido', 'Informe um número entre 1 e 31.');
+              return;
+            }
+            try {
+              await accountsService.setCreditCloseDay(bankAccountId, n);
+              bumpRefresh();
+            } catch (err) {
+              Alert.alert('Erro', normalizeError(err).message);
+            }
+          },
+        },
+      ],
+      'plain-text',
+      current ? String(current) : '',
+      'number-pad',
+    );
+  };
+
   const { bankCards, creditCards, totalChecking, totalCredit } = useMemo(() => {
-    type MiniCard = { id: string; bankName: string; balance: number; logoUrl?: string | null; primaryColor?: string | null; isBrand?: boolean };
+    type MiniCard = {
+      id: string;
+      bankName: string;
+      balance: number;
+      logoUrl?: string | null;
+      primaryColor?: string | null;
+      isBrand?: boolean;
+      creditCloseDay?: number | null;
+    };
     const bank: MiniCard[] = [];
     const credit: MiniCard[] = [];
     let totBank = 0;
@@ -70,6 +133,7 @@ export default function DashboardScreen() {
             logoUrl: logo,
             primaryColor: tint,
             isBrand: !!acc.customName,
+            creditCloseDay: isCredit ? ba.creditCloseDay ?? null : undefined,
           },
         });
         if (isCredit) totCredit += displayBalance;
@@ -203,7 +267,20 @@ export default function DashboardScreen() {
                 <Text style={[styles.miniCardValue, { color: colors.brandTextPrimary }]}>
                   {formatCurrency(c.balance)}
                 </Text>
-                <Text style={[styles.miniCardHint, { color: colors.brandTextSecondary }]}>fatura atual</Text>
+                <Pressable onPress={showStatementInfo} hitSlop={6} style={styles.statementHintRow}>
+                  <Text style={[styles.miniCardHint, { color: colors.brandTextSecondary }]}>Fatura estimada</Text>
+                  <Ionicons name="information-circle-outline" size={12} color={colors.brandTextSecondary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleEditCloseDay(c.id, c.creditCloseDay)}
+                  hitSlop={6}
+                  style={styles.closeDayRow}
+                >
+                  <Text style={[styles.closeDayText, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                    {c.creditCloseDay ? `Fecha dia ${c.creditCloseDay}` : 'Definir fechamento'}
+                  </Text>
+                  <Ionicons name="pencil" size={11} color={colors.brandTextSecondary} />
+                </Pressable>
               </View>
             ))}
           </View>
@@ -386,6 +463,9 @@ const styles = StyleSheet.create({
   miniCardLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   miniCardValue: { fontSize: 18, fontWeight: '900' },
   miniCardHint: { fontSize: 10, fontWeight: '600' },
+  statementHintRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  closeDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  closeDayText: { fontSize: 11, fontWeight: '500' },
   connectCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 18, marginTop: 16, borderWidth: 1, borderStyle: 'dashed' },
   connectCtaText: { fontSize: 14, fontWeight: '700' },
   emptyCard: { padding: 24 },

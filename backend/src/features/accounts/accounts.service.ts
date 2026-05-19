@@ -74,18 +74,23 @@ export class AccountsService {
 
   /**
    * Para cada BankAccount type=CREDIT, calcula `currentStatementAmount`
-   * (fatura aberta) somando o valor absoluto das transactions do ciclo atual,
-   * excluindo "Pagamento de fatura" (transferência interna).
+   * (fatura aberta) em camadas:
    *
-   * Janela do ciclo:
-   *  - Com creditCloseDate persistido (Pluggy normalmente envia o PRÓXIMO
-   *    fechamento):
-   *    - closeDate futuro: ciclo atual = [closeDate - 30d, now]
-   *    - closeDate passado: ciclo atual = [closeDate, now]
-   *  - Sem creditCloseDate (fallback): início do mês UTC até now.
+   *   1. `creditCloseDay` configurado pelo usuário (dia do mês 1-31):
+   *      janela = [último fechamento passado, now]
+   *   2. Última transação "Pagamento de fatura" do cartão:
+   *      janela = [data do pagamento, now]
+   *   3. Sem nada: fallback = balance cru da Pluggy
    */
   private async enrichWithCurrentStatement<
-    T extends { bankAccounts: Array<{ id: string; type: string; creditCloseDate?: Date | null }> }
+    T extends {
+      bankAccounts: Array<{
+        id: string;
+        type: string;
+        balance: number;
+        creditCloseDay?: number | null;
+      }>;
+    }
   >(
     accounts: T[]
   ): Promise<Array<T & { bankAccounts: Array<T["bankAccounts"][number] & { currentStatementAmount?: number }> }>> {
@@ -97,18 +102,40 @@ export class AccountsService {
     }
 
     const now = new Date();
-    const fallbackStart = new Date();
-    fallbackStart.setUTCDate(1);
-    fallbackStart.setUTCHours(0, 0, 0, 0);
 
-    // Uma query por bank account (em paralelo), pois cada um pode ter ciclo diferente.
     const entries = await Promise.all(
       creditAccounts.map(async (ba) => {
-        const { start, end } = openStatementWindow(ba.creditCloseDate ?? null, now, fallbackStart);
+        // Camada 1: closeDay manual.
+        if (ba.creditCloseDay && ba.creditCloseDay >= 1 && ba.creditCloseDay <= 31) {
+          const start = lastCloseDateFromCloseDay(ba.creditCloseDay, now);
+          const agg = await prisma.transaction.aggregate({
+            where: {
+              bankAccountId: ba.id,
+              occurredAt: { gte: start, lte: now },
+              categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+            },
+            _sum: { amount: true },
+          });
+          return [ba.id, Math.abs(agg._sum.amount ?? 0)] as const;
+        }
+
+        // Camada 2: desde último Pagamento de fatura.
+        const lastPayment = await prisma.transaction.findFirst({
+          where: {
+            bankAccountId: ba.id,
+            categoryId: INTERNAL_TRANSFER_CATEGORY_ID,
+          },
+          orderBy: { occurredAt: "desc" },
+          select: { occurredAt: true },
+        });
+        if (!lastPayment) {
+          // Camada 3: balance cru.
+          return [ba.id, ba.balance] as const;
+        }
         const agg = await prisma.transaction.aggregate({
           where: {
             bankAccountId: ba.id,
-            occurredAt: { gte: start, lte: end },
+            occurredAt: { gt: lastPayment.occurredAt, lte: now },
             categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
           },
           _sum: { amount: true },
@@ -116,16 +143,39 @@ export class AccountsService {
         return [ba.id, Math.abs(agg._sum.amount ?? 0)] as const;
       })
     );
-    const sumByBA = new Map(entries);
+    const amountByBA = new Map(entries);
 
     return accounts.map((c) => ({
       ...c,
       bankAccounts: c.bankAccounts.map((ba) =>
         ba.type === "CREDIT"
-          ? { ...ba, currentStatementAmount: sumByBA.get(ba.id) ?? 0 }
+          ? { ...ba, currentStatementAmount: amountByBA.get(ba.id) ?? ba.balance }
           : ba
       ),
     })) as Array<T & { bankAccounts: Array<T["bankAccounts"][number] & { currentStatementAmount?: number }> }>;
+  }
+
+  /**
+   * Configura o dia de fechamento manual de um cartão (1-31).
+   * Passar null pra remover.
+   */
+  async setCreditCloseDay(
+    userId: string,
+    bankAccountId: string,
+    creditCloseDay: number | null
+  ) {
+    const ba = await this.repo.findBankAccountById(bankAccountId);
+    if (!ba) throw Errors.NotFound("Conta não encontrada");
+    if (ba.type !== "CREDIT") throw Errors.Validation("creditCloseDay só se aplica a cartão de crédito");
+    // Garante que o user é dono via ConnectedAccount
+    const conn = await this.repo.findConnectedAccountById(ba.connectedAccountId);
+    if (!conn || conn.userId !== userId) throw Errors.NotFound("Conta não encontrada");
+    if (creditCloseDay !== null && (creditCloseDay < 1 || creditCloseDay > 31 || !Number.isInteger(creditCloseDay))) {
+      throw Errors.Validation("creditCloseDay deve ser inteiro entre 1 e 31");
+    }
+    await this.repo.setBankAccountCreditCloseDay(bankAccountId, creditCloseDay);
+    await this.invalidateDashboardCache(userId);
+    return { ok: true };
   }
 
   async removeAccount(userId: string, connectedAccountId: string): Promise<void> {
@@ -212,21 +262,30 @@ function parsePluggyDate(value: string | undefined): Date | null {
 }
 
 /**
- * Calcula a janela [start, end] da fatura aberta atual usando creditCloseDate.
- * - Sem closeDate: fallback (início do mês UTC).
- * - closeDate futuro (próximo fechamento): ciclo atual = [closeDate - 30d, now]
- * - closeDate passado (já fechou): ciclo atual = [closeDate, now]
+ * Dado um dia do mês (1-31) configurado pelo usuário, retorna o INÍCIO do
+ * dia de fechamento mais recente (passado ou hoje). A janela da fatura
+ * aberta usa `gte` esse valor — convenção: compras feitas NO dia do
+ * fechamento contam pra fatura nova (mesmo que estejam fechando o mês).
+ *
+ * Ex: hoje = 19/05, closeDay = 9 → retorna 09/05 00:00:00.
+ * Ex: hoje = 05/05, closeDay = 9 → retorna 09/04 00:00:00.
+ * Se o mês não tem o dia (ex: closeDay=31 em fev), usa o último do mês.
  */
-function openStatementWindow(
-  closeDate: Date | null,
-  now: Date,
-  fallbackStart: Date
-): { start: Date; end: Date } {
-  if (!closeDate) return { start: fallbackStart, end: now };
-  if (closeDate.getTime() > now.getTime()) {
-    const start = new Date(closeDate);
-    start.setUTCDate(start.getUTCDate() - 30);
-    return { start, end: now };
+function lastCloseDateFromCloseDay(closeDay: number, now: Date): Date {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-indexed
+  const todayDay = now.getUTCDate();
+  let refYear = year;
+  let refMonth = month;
+  if (todayDay < closeDay) {
+    refMonth -= 1;
+    if (refMonth < 0) {
+      refMonth = 11;
+      refYear -= 1;
+    }
   }
-  return { start: closeDate, end: now };
+  const daysInRefMonth = new Date(Date.UTC(refYear, refMonth + 1, 0)).getUTCDate();
+  const effectiveDay = Math.min(closeDay, daysInRefMonth);
+  return new Date(Date.UTC(refYear, refMonth, effectiveDay, 0, 0, 0, 0));
 }
+

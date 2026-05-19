@@ -97,6 +97,17 @@ export class AccountsRepository {
     });
   }
 
+  findBankAccountById(id: string): Promise<BankAccount | null> {
+    return prisma.bankAccount.findUnique({ where: { id } });
+  }
+
+  setBankAccountCreditCloseDay(id: string, creditCloseDay: number | null): Promise<BankAccount> {
+    return prisma.bankAccount.update({
+      where: { id },
+      data: { creditCloseDay },
+    });
+  }
+
   async touchConnectedAccount(id: string): Promise<void> {
     await prisma.connectedAccount.update({
       where: { id },

@@ -17,6 +17,8 @@ export type BankAccount = {
   lastSyncAt: string | null;
   /** Fatura atual aberta (só preenchido pra type='CREDIT'). Calculado no backend. */
   currentStatementAmount?: number;
+  /** Dia do mês (1-31) em que a fatura fecha. Setado manualmente pelo user. */
+  creditCloseDay?: number | null;
 };
 export type Account = {
   id: string;

@@ -69,6 +69,10 @@ model BankAccount {
   // Usado para calcular a fatura aberta no dashboard.
   creditCloseDate    DateTime?
   creditDueDate      DateTime?
+  // Dia do mês (1-31) em que a fatura fecha. Configurado MANUALMENTE pelo
+  // usuário quando o Pluggy/banco não envia creditData confiável (ex: Mercado Pago).
+  // Quando setado, tem prioridade sobre creditCloseDate no cálculo da fatura aberta.
+  creditCloseDay     Int?
   connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
   transactions       Transaction[]
 

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -102,9 +102,22 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
             {subAccounts.length > 0 ? `${subAccounts.length} ${subAccounts.length === 1 ? 'conta' : 'contas'}` : (account.type || 'Conta')} • atualizado {lastSync ? formatDate(lastSync) : 'pendente'}
           </Text>
           {creditSum > 0 ? (
-            <Text style={[styles.meta, { color: colors.brandTextNegative, marginTop: 2 }]}>
-              fatura: {formatCurrency(creditSum)}
-            </Text>
+            <Pressable
+              onPress={() =>
+                Alert.alert(
+                  'Fatura estimada',
+                  'Valores marcados como "fatura estimada" são calculados pela soma das transações do ciclo de faturamento atual. Como o banco geralmente não retorna o valor exato da fatura aberta antes do vencimento, essa informação é parcial e pode não refletir o total final.\n\nPra melhorar a precisão, configure o "dia de fechamento" do cartão no Dashboard.',
+                  [{ text: 'Entendi' }]
+                )
+              }
+              hitSlop={6}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}
+            >
+              <Text style={[styles.meta, { color: colors.brandTextNegative }]}>
+                fatura: {formatCurrency(creditSum)}
+              </Text>
+              <Ionicons name="information-circle-outline" size={12} color={colors.brandTextNegative} />
+            </Pressable>
           ) : null}
         </View>
         <View style={styles.right}>
@@ -137,7 +150,7 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
               </Text>
             </View>
             <Text style={[styles.subBalance, { color: isCredit ? colors.brandTextNegative : colors.brandTextPrimary }]}>
-              {formatCurrency(ba.balance)}
+              {formatCurrency(isCredit ? ba.currentStatementAmount ?? ba.balance : ba.balance)}
             </Text>
           </Pressable>
         );
