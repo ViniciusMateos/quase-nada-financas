@@ -3,6 +3,41 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.4.0] - 2026-05-20
+
+### Added
+
+- Automacao de investimentos com Binance: ordens manuais (market buy)
+  e regras (ex: salario caiu -> investe) com aprovacao por tap, carteira
+  Spot + Funding em BRL, tarefas pendentes e card da Binance na aba Contas.
+- Conexao de contas direto pelo MeuPluggy: resolve o conector
+  dinamicamente em `/connectors` (fallback id 200) e abre o widget nele;
+  leitura continua via Pluggy Data API.
+- Resumo semanal de financas (`getWeeklySummary`): entradas, saidas,
+  saldo e top categorias dos ultimos 7 dias, com tela dedicada e push
+  toda segunda.
+- Notificacoes push via Expo (ordens executadas, resumo semanal).
+- Contas salvas, hub de selecao e login rapido por Face ID (refresh
+  token no SecureStore), com app lock por Face ID.
+- Alterar senha (`PATCH /auth/password`), excluir conta
+  (`DELETE /auth/account`, cascata) e nome no cadastro.
+- Gatilho `salary_received`: transacao de salario dispara as regras de
+  investimento.
+
+### Changed
+
+- Identidade visual Quase Nada: `LoadingDog` (cachorro + anel girando) e
+  `DogRefresh` substituem todos os spinners/skeletons e o pull-to-refresh;
+  splash so com o cachorro.
+- Config de build: plugin `expo-notifications`, `LSApplicationQueriesSchemes`
+  pro deep link da Binance e `EXPO_PUBLIC_API_URL` de preview no servidor remoto.
+
+### Fixed
+
+- `BottomSheet` sobe junto com o teclado (listener de keyboardWillShow/Hide).
+- Sincronizacao do refresh token da conta salva nas rotacoes do `apiClient`,
+  evitando 403 de reuso no login rapido pelo hub.
+
 ## [0.3.0] - 2026-05-19
 
 ### Added
