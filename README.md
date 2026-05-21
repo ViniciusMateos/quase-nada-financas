@@ -11,7 +11,9 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 
 - Autenticacao JWT com access token, refresh token e logout.
 - Dashboard com saldo total, receitas, despesas, top categorias (com %) e transacoes recentes.
-- Contas bancarias via Pluggy Connect (SDK nativo), com logo e cor do banco.
+- Contas bancarias via Pluggy Connect (SDK nativo), com logo e cor do banco — conexao direta pelo MeuPluggy.
+- Multiplas contas salvas com hub de selecao e login rapido por Face ID (refresh token no SecureStore); app lock por Face ID.
+- Gestao de conta: nome no cadastro, alterar senha e excluir conta (apaga dados em cascata).
 - Webhook Pluggy auto-cria contas quando o callback chega antes do retorno do app.
 - Transacoes com filtros por conta/tipo (BANK/CREDIT), busca, paginacao por cursor,
   edicao de alias, categoria e override de assinatura (propaga para similares).
@@ -24,7 +26,11 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 - Atualizacao automatica entre telas via `DataRefreshContext` —
   conectou conta, sincronizou, editou transacao? Outras telas
   refazem fetch sozinhas, sem reiniciar app.
-- Binance: conexao por API key, carteira, cotacoes e ordens com biometria.
+- Binance: conexao por API key, carteira (Spot + Funding), cotacoes e ordens com biometria.
+- Investimentos automatizados: regras (ex: salario caiu -> investe) com aprovacao por tap e tarefas pendentes.
+- Resumo semanal (entradas, saidas, saldo e top categorias) com push toda segunda.
+- Notificacoes push via Expo (ordens executadas, resumo semanal).
+- Loading com mascote (cachorro girando) em todo o app.
 - Tema claro/escuro com `ThemeProvider` e paletas dedicadas (fade sem flash).
 - Cache offline para dados principais.
 - Deploy backend com Docker, PostgreSQL, Redis e GitHub Actions.
