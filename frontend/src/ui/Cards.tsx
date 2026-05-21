@@ -67,7 +67,7 @@ function bankAccountShortLabel(ba: { type?: string; subtype?: string | null; mar
   }
 }
 
-export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, onRename }: { account: Account; onPress: () => void; onDelete: () => void; onSync: () => void; onSubPress?: (bankAccountId: string) => void; onRename?: () => void }) {
+export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, onRename, investedBrl, onInvestedPress }: { account: Account; onPress: () => void; onDelete: () => void; onSync: () => void; onSubPress?: (bankAccountId: string) => void; onRename?: () => void; investedBrl?: number | null; onInvestedPress?: () => void }) {
   const { colors, radius, shadows } = useTheme();
   const subAccounts = account.bankAccounts ?? [];
   const bankSum = subAccounts.filter((a) => a.type !== 'CREDIT').reduce((acc, a) => acc + a.balance, 0);
@@ -78,6 +78,23 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
   const displayBalance = subAccounts.length > 0 ? bankSum : account.balance ?? 0;
   const lastSync = subAccounts.map((a) => a.lastSyncAt).filter(Boolean).sort().pop() ?? account.lastSyncedAt;
   const displayName = account.customName || account.bankName;
+
+  // Consolida sub-contas com o mesmo rótulo (ex: corretora com 2 "Conta corrente"
+  // vira uma só, somando os saldos).
+  const mergedSubRows = (() => {
+    const map = new Map<string, { key: string; label: string; isCredit: boolean; value: number }>();
+    for (const ba of subAccounts) {
+      const isCredit = ba.type === 'CREDIT';
+      const suffix = isCredit && ba.number ? ` ·${String(ba.number).slice(-4)}` : '';
+      const label = bankAccountShortLabel(ba) + suffix;
+      const value = isCredit ? ba.currentStatementAmount ?? ba.balance : ba.balance;
+      const existing = map.get(label);
+      if (existing) existing.value += value;
+      else map.set(label, { key: label, label, isCredit, value });
+    }
+    return [...map.values()];
+  })();
+
   return (
     <View style={{ marginBottom: 12 }}>
       <Pressable
@@ -129,32 +146,42 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
         </View>
       </Pressable>
 
-      {subAccounts.map((ba) => {
-        const isCredit = ba.type === 'CREDIT';
-        const label = bankAccountShortLabel(ba);
-        const suffix = isCredit && ba.number ? ` ·${String(ba.number).slice(-4)}` : '';
-        return (
-          <Pressable
-            key={ba.id}
-            onPress={() => onSubPress?.(ba.id)}
-            style={({ pressed }) => [
-              styles.subRow,
-              { backgroundColor: colors.brandSurface, borderRadius: radius.md, ...shadows.card },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <View style={[styles.subDot, { backgroundColor: isCredit ? colors.brandTextNegative : colors.brandPrimaryDark }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>
-                {label}{suffix}
-              </Text>
-            </View>
-            <Text style={[styles.subBalance, { color: isCredit ? colors.brandTextNegative : colors.brandTextPrimary }]}>
-              {formatCurrency(isCredit ? ba.currentStatementAmount ?? ba.balance : ba.balance)}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {mergedSubRows.map((row) => (
+        <Pressable
+          key={row.key}
+          onPress={() => onSubPress?.(row.key)}
+          style={({ pressed }) => [
+            styles.subRow,
+            { backgroundColor: colors.brandSurface, borderRadius: radius.md, ...shadows.card },
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <View style={[styles.subDot, { backgroundColor: row.isCredit ? colors.brandTextNegative : colors.brandPrimaryDark }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>{row.label}</Text>
+          </View>
+          <Text style={[styles.subBalance, { color: row.isCredit ? colors.brandTextNegative : colors.brandTextPrimary }]}>
+            {formatCurrency(row.value)}
+          </Text>
+        </Pressable>
+      ))}
+
+      {investedBrl != null && investedBrl > 0 ? (
+        <Pressable
+          onPress={onInvestedPress}
+          style={({ pressed }) => [
+            styles.subRow,
+            { backgroundColor: colors.brandSurface, borderRadius: radius.md, ...shadows.card },
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <View style={[styles.subDot, { backgroundColor: colors.brandInfo }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>Investido</Text>
+          </View>
+          <Text style={[styles.subBalance, { color: colors.brandTextPrimary }]}>{formatCurrency(investedBrl)}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

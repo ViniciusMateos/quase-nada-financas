@@ -8,6 +8,7 @@ import { useDataRefresh } from '@/contexts/DataRefreshContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDashboard } from '@/hooks/useDashboard';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
@@ -15,7 +16,7 @@ import { normalizeError } from '@/lib/errorMap';
 import { accountsService } from '@/services/accounts.service';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { BankBadge } from '@/ui/BankBadge';
-import { ErrorState, LoadingState } from '@/ui/States';
+import { ErrorState, ListSkeleton } from '@/ui/States';
 import { TransactionCard } from '@/ui/Cards';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
 
@@ -34,7 +35,16 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, radius, shadows } = useTheme();
   const { data, loading, refreshing, error, refresh, retry } = useDashboard();
+  const { data: portfolio } = usePortfolio();
   const { items: accounts, load: reloadAccounts } = useAccounts();
+
+  const topMovers = useMemo(() => {
+    const items = (portfolio?.groups ?? []).flatMap((g) => g.items);
+    return items
+      .filter((i) => i.profitPct != null)
+      .sort((a, b) => (b.profitPct as number) - (a.profitPct as number))
+      .slice(0, 3);
+  }, [portfolio]);
 
   const bumpRefresh = useDataRefresh();
 
@@ -109,6 +119,7 @@ export default function DashboardScreen() {
     type Entry = { card: MiniCard; isCredit: boolean; subtype?: string | null; institution: string };
     const entries: Entry[] = [];
     for (const acc of accounts ?? []) {
+      if (acc.isInvestment) continue; // corretora não entra no saldo/cards do banco
       const displayName = acc.customName || acc.bankName;
       const logo = effectiveLogoUrl(acc);
       const tint = effectivePrimaryColor(acc);
@@ -154,19 +165,19 @@ export default function DashboardScreen() {
     return { bankCards: bank, creditCards: credit, totalChecking: totBank, totalCredit: totCredit };
   }, [accounts]);
 
-  if (loading) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
-
-  if (error || !data) {
+  if (error) {
     return (
       <TabScreen>
         <ErrorState subtitle={error || undefined} onRetry={retry} />
       </TabScreen>
+    );
+  }
+
+  if (!data) {
+    return (
+      <TabScreenScroll refreshing={refreshing} loading={loading} onRefresh={refresh}>
+        <ListSkeleton />
+      </TabScreenScroll>
     );
   }
 
@@ -239,6 +250,56 @@ export default function DashboardScreen() {
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
       </Pressable>
+
+      {portfolio && portfolio.groups.length > 0 ? (
+        <>
+          <SectionTitle onSeeAll={() => navigation.navigate('Ativos')}>Investimentos</SectionTitle>
+          <Pressable
+            onPress={() => navigation.navigate('Ativos')}
+            style={({ pressed }) => [
+              styles.groupCard,
+              { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <View style={[styles.categoryRow, topMovers.length > 0 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brandDivider }]}>
+              <View style={styles.categoryLeft}>
+                <View style={[styles.weeklyIcon, { backgroundColor: colors.brandPrimaryTint }]}>
+                  <Ionicons name="pie-chart" size={18} color={colors.brandPrimaryDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.categoryName, { color: colors.brandTextPrimary }]}>Patrimônio investido</Text>
+                  <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>Rico, XP, Binance...</Text>
+                </View>
+              </View>
+              <Text style={[styles.categoryAmount, { color: colors.brandTextPrimary }]}>
+                {formatCurrency(portfolio.totals.current)}
+              </Text>
+            </View>
+            {topMovers.map((it, i) => (
+              <View
+                key={it.id}
+                style={[
+                  styles.categoryRow,
+                  i < topMovers.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.brandDivider },
+                ]}
+              >
+                <View style={styles.categoryLeft}>
+                  <Ionicons
+                    name={(it.profitPct as number) >= 0 ? 'trending-up' : 'trending-down'}
+                    size={16}
+                    color={(it.profitPct as number) >= 0 ? colors.brandTextPositive : colors.brandTextNegative}
+                  />
+                  <Text style={[styles.categoryName, { color: colors.brandTextPrimary }]} numberOfLines={1}>{it.name}</Text>
+                </View>
+                <Text style={{ fontWeight: '800', fontSize: 14, color: (it.profitPct as number) >= 0 ? colors.brandTextPositive : colors.brandTextNegative }}>
+                  {(it.profitPct as number) >= 0 ? '+' : ''}{(it.profitPct as number).toFixed(2)}%
+                </Text>
+              </View>
+            ))}
+          </Pressable>
+        </>
+      ) : null}
 
       {bankCards.length > 0 ? (
         <>

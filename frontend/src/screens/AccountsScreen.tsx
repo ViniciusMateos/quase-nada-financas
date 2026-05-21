@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useInvestments } from '@/hooks/useInvestments';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,7 +11,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { accountsService } from '@/services/accounts.service';
 import { Button } from '@/ui/Button';
 import { AccountCard } from '@/ui/Cards';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
 
 // Logo da Binance (losango dourado do BNB) via proxy de imagem já usado no app.
@@ -22,7 +23,15 @@ export default function AccountsScreen() {
   const { colors } = useTheme();
   const { items, loading, error, load, remove, sync, rename } = useAccounts();
   const { wallet } = useInvestments();
+  const { data: portfolio } = usePortfolio();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Total investido por instituição (Rico, XP...) pra mostrar a linha "Investido" no card.
+  const investedBySource = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of portfolio?.groups ?? []) m.set(g.source, g.totals.current);
+    return m;
+  }, [portfolio]);
 
   useFocusRefresh(load);
 
@@ -64,14 +73,6 @@ export default function AccountsScreen() {
 
   useForegroundRefresh(handleRefresh);
 
-  if (loading) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
-
   if (error) {
     return (
       <TabScreen>
@@ -81,7 +82,7 @@ export default function AccountsScreen() {
   }
 
   return (
-    <TabScreenScroll refreshing={refreshing} onRefresh={handleRefresh}>
+    <TabScreenScroll refreshing={refreshing} loading={loading && accounts.length === 0} onRefresh={handleRefresh}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Minhas contas</Text>
         <Button
@@ -92,7 +93,9 @@ export default function AccountsScreen() {
         />
       </View>
 
-      {accounts.length === 0 ? (
+      {loading && accounts.length === 0 ? (
+        <ListSkeleton />
+      ) : accounts.length === 0 ? (
         <EmptyState
           title="Nenhuma conta conectada"
           actionLabel="Conectar minha primeira conta"
@@ -103,11 +106,13 @@ export default function AccountsScreen() {
           <AccountCard
             key={account.id}
             account={account}
-            onPress={() => navigation.navigate('Transacoes', { accountId: account.id })}
+            onPress={() => navigation.navigate('Transacoes', { accountId: account.id, _ts: Date.now() })}
             onDelete={() => remove(account.id)}
             onSync={() => sync(account.id)}
-            onSubPress={() => navigation.navigate('Transacoes', { accountId: account.id })}
+            onSubPress={() => navigation.navigate('Transacoes', { accountId: account.id, _ts: Date.now() })}
             onRename={() => handleRename(account.id, account.customName || account.bankName)}
+            investedBrl={investedBySource.get(account.customName || account.bankName) ?? null}
+            onInvestedPress={() => navigation.navigate('Ativos')}
           />
         ))
       )}

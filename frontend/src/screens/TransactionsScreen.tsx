@@ -16,8 +16,8 @@ import { accountsService } from '@/services/accounts.service';
 import { transactionsService, TransactionsSummary } from '@/services/transactions.service';
 import { TransactionCard } from '@/ui/Cards';
 import { LoadingDog } from '@/ui/LoadingDog';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { PeriodPickerSheet } from '@/ui/PeriodPickerSheet';
 import { TabScreen } from '@/ui/TabScreen';
 import type { Transaction } from '@/types/api.types';
@@ -40,6 +40,14 @@ export default function TransactionsScreen() {
   // Filtro por instituição (ConnectedAccount.id). Selecionar uma pill envia accountIds = bankAccounts daquela conexão.
   const [accountFilter, setAccountFilter] = useState<string | null>(route.params?.accountId ?? null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Re-aplica o filtro a cada toque numa conta na aba Contas. O _ts muda em todo
+  // toque, então re-filtra mesmo tocando a mesma conta (a aba fica montada e o
+  // useState inicial só roda uma vez).
+  useEffect(() => {
+    if (route.params?.accountId !== undefined) setAccountFilter(route.params.accountId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?._ts]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -208,13 +216,6 @@ export default function TransactionsScreen() {
 
   const sections = useMemo(() => groupByDay(filtered), [filtered]);
 
-  if (loading) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
   if (error) {
     return (
       <TabScreen>
@@ -363,10 +364,10 @@ export default function TransactionsScreen() {
         <FilterPill small label="Crédito" active={sourceFilter === 'CREDIT'} onPress={() => setSourceFilter('CREDIT')} />
       </View>
 
-      {accounts && accounts.length > 1 ? (
+      {(accounts ?? []).filter((a) => !a.isInvestment).length > 1 ? (
         <View style={[styles.filterRow, { marginTop: 0 }]}>
           <FilterPill label="Todas as contas" small active={!accountFilter} onPress={() => setAccountFilter(null)} />
-          {accounts.map((acc) => (
+          {(accounts ?? []).filter((a) => !a.isInvestment).map((acc) => (
             <FilterPill
               key={acc.id}
               label={acc.customName || acc.bankName}
@@ -392,6 +393,8 @@ export default function TransactionsScreen() {
             </View>
           ))}
         </View>
+      ) : loading && items.length === 0 ? (
+        <ListSkeleton />
       ) : (
       <SectionList
         sections={sections}
@@ -433,6 +436,7 @@ export default function TransactionsScreen() {
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.4}
         refreshControl={dogRefreshControl(refreshing, handleRefresh)}
+        ListHeaderComponent={<DogRefreshHeader refreshing={refreshing} />}
         ListEmptyComponent={
           <EmptyState
             title="Nenhuma transação"
@@ -450,7 +454,6 @@ export default function TransactionsScreen() {
         showsVerticalScrollIndicator={false}
       />
       )}
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </TabScreen>
   );
