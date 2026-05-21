@@ -28,8 +28,11 @@ export class AccountsController {
   };
 
   pluggyConnectToken = async (req: FastifyRequest<{ Body: ConnectTokenBody }>, reply: FastifyReply) => {
-    const token = await this.service.createPluggyConnectToken(req.userId, req.body?.oauthRedirectUri);
-    return reply.send({ connectToken: token });
+    const { token, meuPluggyConnectorId } = await this.service.createPluggyConnectToken(
+      req.userId,
+      req.body?.oauthRedirectUri
+    );
+    return reply.send({ connectToken: token, meuPluggyConnectorId });
   };
 
   pluggyCallback = async (req: FastifyRequest<{ Body: CallbackBody }>, reply: FastifyReply) => {

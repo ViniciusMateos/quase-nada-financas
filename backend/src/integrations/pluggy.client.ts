@@ -49,8 +49,14 @@ interface PluggyItemResponse {
   executionStatus?: string;
 }
 
+// ID conhecido e estável do conector MeuPluggy (visto no Dashboard: "(200) MeuPluggy").
+// Usado como fallback caso a busca dinâmica em /connectors falhe.
+const MEU_PLUGGY_CONNECTOR_ID = 200;
+
 export class PluggyClient {
   private apiKeyCache: { key: string; expiresAt: number } | null = null;
+  // undefined = ainda não resolvido. IDs de conector são estáveis, então cacheia.
+  private meuPluggyConnectorId: number | undefined = undefined;
 
   private async getApiKey(): Promise<string> {
     const now = Date.now();
@@ -97,6 +103,42 @@ export class PluggyClient {
     }
     const json = (await res.body.json()) as PluggyConnectTokenResponse;
     return json.accessToken;
+  }
+
+  /**
+   * Resolve o ID do conector "MeuPluggy" via GET /connectors, com fallback para o
+   * ID conhecido (200). Sempre retorna um ID — o objetivo é abrir direto no
+   * MeuPluggy. Cacheado em memória.
+   */
+  async getMeuPluggyConnectorId(): Promise<number> {
+    if (this.meuPluggyConnectorId !== undefined) return this.meuPluggyConnectorId;
+    try {
+      const apiKey = await this.getApiKey();
+      const res = await request(`${env.PLUGGY_API_URL}/connectors?name=${encodeURIComponent("MeuPluggy")}`, {
+        method: "GET",
+        headers: { "X-API-KEY": apiKey },
+      });
+      if (res.statusCode < 400) {
+        const json = (await res.body.json()) as { results?: { id: number; name: string }[] };
+        const results = json.results ?? [];
+        const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+        const match =
+          results.find((c) => norm(c.name) === "meupluggy") ??
+          results.find((c) => norm(c.name).includes("meupluggy"));
+        if (match) {
+          this.meuPluggyConnectorId = match.id;
+          return match.id;
+        }
+        logger.warn("Conector MeuPluggy não encontrado em /connectors; usando fallback 200");
+      } else {
+        logger.warn({ status: res.statusCode }, "Pluggy getConnectors (MeuPluggy) falhou; usando fallback 200");
+      }
+    } catch {
+      // erro transitório: usa o fallback sem cachear (tenta de novo na próxima)
+      return MEU_PLUGGY_CONNECTOR_ID;
+    }
+    this.meuPluggyConnectorId = MEU_PLUGGY_CONNECTOR_ID;
+    return MEU_PLUGGY_CONNECTOR_ID;
   }
 
   async getItem(itemId: string): Promise<PluggyItemResponse> {

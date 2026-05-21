@@ -2,7 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 
 export const pluggyService = {
   connectToken: (oauthRedirectUri?: string) =>
-    apiClient.post<unknown, { connectToken: string; expiresAt: string | null }>(
+    apiClient.post<unknown, { connectToken: string; expiresAt?: string | null; meuPluggyConnectorId: number | null }>(
       '/pluggy/connect-token',
       oauthRedirectUri ? { oauthRedirectUri } : {}
     ),

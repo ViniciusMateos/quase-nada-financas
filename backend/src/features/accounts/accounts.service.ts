@@ -12,8 +12,15 @@ export class AccountsService {
   private readonly pluggy = new PluggyClient();
   private readonly txService = new TransactionsService();
 
-  async createPluggyConnectToken(userId: string, oauthRedirectUri?: string): Promise<string> {
-    return this.pluggy.createConnectToken(userId, oauthRedirectUri);
+  async createPluggyConnectToken(
+    userId: string,
+    oauthRedirectUri?: string
+  ): Promise<{ token: string; meuPluggyConnectorId: number }> {
+    const [token, meuPluggyConnectorId] = await Promise.all([
+      this.pluggy.createConnectToken(userId, oauthRedirectUri),
+      this.pluggy.getMeuPluggyConnectorId(),
+    ]);
+    return { token, meuPluggyConnectorId };
   }
 
   async handlePluggyCallback(userId: string, itemId: string) {

@@ -27,6 +27,7 @@ export default function ConnectBankScreen() {
   const { colors } = useTheme();
   const bumpRefresh = useDataRefresh();
   const [token, setToken] = useState<string | null>(null);
+  const [meuPluggyConnectorId, setMeuPluggyConnectorId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<{ title?: string; subtitle: string } | null>(null);
@@ -55,6 +56,7 @@ export default function ConnectBankScreen() {
     try {
       const res = await pluggyService.connectToken(OAUTH_REDIRECT_URI);
       setToken(res.connectToken);
+      setMeuPluggyConnectorId(res.meuPluggyConnectorId ?? null);
     } catch (err) {
       setError({ title: 'Conexão bancária indisponível', subtitle: normalizeError(err).message });
     } finally {
@@ -84,7 +86,10 @@ export default function ConnectBankScreen() {
       ) : token ? (
         <PluggyConnect
           connectToken={token}
-          includeSandbox={true}
+          // Vai direto pro MeuPluggy quando o conector é encontrado; senão, widget normal.
+          connectorIds={meuPluggyConnectorId ? [meuPluggyConnectorId] : undefined}
+          selectedConnectorId={meuPluggyConnectorId ?? undefined}
+          includeSandbox={!meuPluggyConnectorId}
           allowConnectInBackground={true}
           onSuccess={({ item }) => finishWithItem(item.id)}
           onEvent={(payload: any) => {
