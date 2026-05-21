@@ -78,7 +78,7 @@ export default function SettingsScreen() {
   return (
     <TabScreen>
       <Text style={styles.title}>Ajustes</Text>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
         {/* Perfil + cor do avatar */}
         <View style={[styles.card, { ...shadows.card }]}>
           <View style={styles.profileRow}>

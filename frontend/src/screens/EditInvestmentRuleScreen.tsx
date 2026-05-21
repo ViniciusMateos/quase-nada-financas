@@ -113,7 +113,13 @@ export default function EditInvestmentRuleScreen() {
     <Screen style={styles.padded}>
       <ScreenHeader title={editing ? 'Editar regra' : 'Nova regra'} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+      >
         <Label colors={colors}>Nome</Label>
         <TextInput
           value={name}

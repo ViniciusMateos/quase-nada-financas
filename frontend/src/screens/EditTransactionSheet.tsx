@@ -92,7 +92,7 @@ export default function EditTransactionSheet() {
 
   return (
     <BottomSheet onClose={() => navigation.goBack()}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
         <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Editar transação</Text>
         <Text style={[styles.helper, { color: colors.brandTextSecondary }]}>
           As mudanças se aplicam a todas as transações parecidas (mesmo estabelecimento).

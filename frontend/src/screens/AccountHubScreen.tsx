@@ -126,7 +126,7 @@ export default function AccountHubScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
         <Image
           source={require('../../assets/logo.png')}
           style={{ width: logoSize, height: logoSize, resizeMode: 'contain', alignSelf: 'center', marginBottom: 20, tintColor: colors.brandPrimaryDark }}
