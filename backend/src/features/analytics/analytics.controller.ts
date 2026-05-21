@@ -30,6 +30,11 @@ export class AnalyticsController {
     const payload = await this.service.getInstallments(req.userId);
     return reply.send(payload);
   };
+
+  weeklySummary = async (req: FastifyRequest, reply: FastifyReply) => {
+    const payload = await this.service.getWeeklySummary(req.userId);
+    return reply.send(payload);
+  };
 }
 
 function defaultMonth(): string {

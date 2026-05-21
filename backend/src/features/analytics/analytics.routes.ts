@@ -28,3 +28,9 @@ export async function installmentsRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", authenticate);
   app.get("/", { handler: controller.installments });
 }
+
+export async function weeklySummaryRoutes(app: FastifyInstance): Promise<void> {
+  const controller = new AnalyticsController();
+  app.addHook("preHandler", authenticate);
+  app.get("/", { handler: controller.weeklySummary });
+}

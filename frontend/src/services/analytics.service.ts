@@ -60,8 +60,25 @@ export type InstallmentsResponse = {
   totals: { paid: number; remaining: number; count: number };
 };
 
+export type WeeklySummary = {
+  startDate: string;
+  endDate: string;
+  income: number;
+  expense: number;
+  net: number;
+  count: number;
+  topCategories: Array<{
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    categoryColor: string | null;
+    total: number;
+  }>;
+};
+
 export const analyticsService = {
   subscriptions: () => apiClient.get<unknown, SubscriptionsResponse>('/subscriptions'),
+  weeklySummary: () => apiClient.get<unknown, WeeklySummary>('/analytics/weekly-summary'),
   categoryStats: (opts: { month?: string; startDate?: string; endDate?: string } = {}) => {
     const params: Record<string, string> = {};
     if (opts.startDate && opts.endDate) {

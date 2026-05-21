@@ -319,6 +319,87 @@ export class AnalyticsService {
       totals: { paid: round(totalPaid), remaining: round(totalRemaining), count: items.length },
     };
   }
+
+  /**
+   * Resumo dos últimos 7 dias: receitas, despesas, saldo e top categorias de
+   * gasto. Usado na tela de resumo e na notificação semanal.
+   */
+  async getWeeklySummary(userId: string, reference: Date = new Date()): Promise<WeeklySummary> {
+    const end = reference;
+    const start = new Date(end.getTime() - 7 * 86_400_000);
+
+    const txs = await prisma.transaction.findMany({
+      where: {
+        bankAccount: { connectedAccount: { userId } },
+        occurredAt: { gte: start, lte: end },
+        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+      },
+      select: {
+        amount: true,
+        categoryId: true,
+        category: { select: { name: true, icon: true, color: true } },
+      },
+    });
+
+    let income = 0;
+    let expense = 0;
+    const catMap = new Map<string, { name: string; icon: string | null; color: string | null; total: number }>();
+
+    for (const tx of txs) {
+      if (tx.amount >= 0) {
+        income += tx.amount;
+      } else {
+        const abs = Math.abs(tx.amount);
+        expense += abs;
+        const id = tx.categoryId ?? "uncategorized";
+        const cur = catMap.get(id) ?? {
+          name: tx.category?.name ?? "Sem categoria",
+          icon: tx.category?.icon ?? null,
+          color: tx.category?.color ?? null,
+          total: 0,
+        };
+        cur.total += abs;
+        catMap.set(id, cur);
+      }
+    }
+
+    const topCategories = [...catMap.entries()]
+      .map(([categoryId, c]) => ({
+        categoryId,
+        categoryName: c.name,
+        categoryIcon: c.icon,
+        categoryColor: c.color,
+        total: round(c.total),
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    return {
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      income: round(income),
+      expense: round(expense),
+      net: round(income - expense),
+      count: txs.length,
+      topCategories,
+    };
+  }
+}
+
+export interface WeeklySummary {
+  startDate: string;
+  endDate: string;
+  income: number;
+  expense: number;
+  net: number;
+  count: number;
+  topCategories: Array<{
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    categoryColor: string | null;
+    total: number;
+  }>;
 }
 
 const SUBSCRIPTION_BLACKLIST = [
