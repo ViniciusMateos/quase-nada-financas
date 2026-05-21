@@ -28,6 +28,9 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
   refazem fetch sozinhas, sem reiniciar app.
 - Binance: conexao por API key, carteira (Spot + Funding), cotacoes e ordens com biometria.
 - Investimentos automatizados: regras (ex: salario caiu -> investe) com aprovacao por tap e tarefas pendentes.
+- Aba Ativos: carteira de investimentos das corretoras (Rico/XP via MeuPluggy) + Binance, agrupada por instituicao e classe (FII, acoes, renda fixa...), com valorizacao do dia/mes via snapshot diario e transacoes (aportes/resgates) por ativo.
+- Corretora fica fora do saldo e das transacoes (dinheiro aplicado nao e saldo disponivel).
+- Detecta o aporte real na corretora e fecha a regra de investimento sozinho.
 - Resumo semanal (entradas, saidas, saldo e top categorias) com push toda segunda.
 - Notificacoes push via Expo (ordens executadas, resumo semanal).
 - Loading com mascote (cachorro girando) em todo o app.
