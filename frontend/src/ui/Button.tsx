@@ -1,7 +1,8 @@
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
+import { LoadingDog } from '@/ui/LoadingDog';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -76,7 +77,7 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.brandPrimaryDark : '#FFFFFF'} />
+        <LoadingDog size={28} color={variant === 'secondary' ? colors.brandPrimaryDark : '#FFFFFF'} />
       ) : (
         <>
           {icon ? <Ionicons name={icon} size={20} color={labelColor} /> : null}

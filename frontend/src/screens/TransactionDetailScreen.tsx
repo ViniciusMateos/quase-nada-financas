@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, DeviceEventEmitter, Platform, RefreshControl, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
+import { Alert, DeviceEventEmitter, Platform, ScrollView, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters';
 import { transactionsService } from '@/services/transactions.service';
 import { TRANSACTION_UPDATED_EVENT, TransactionUpdatedPayload } from '@/screens/EditTransactionSheet';
 import { CategoryIcon } from '@/ui/CategoryIcon';
+import { LoadingDog } from '@/ui/LoadingDog';
+import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { Transaction } from '@/types/api.types';
@@ -88,17 +90,11 @@ export default function TransactionDetailScreen() {
         rightAction={{ icon: 'create-outline', onPress: openEditor }}
       />
 
+      <View style={{ flex: 1 }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 28 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.brandPrimaryDark}
-            colors={[colors.brandPrimaryDark]}
-          />
-        }
+        refreshControl={dogRefreshControl(refreshing, onRefresh)}
       >
         <View style={[styles.heroCard, { backgroundColor: colors.brandSurface, borderRadius: radius.xl, ...shadows.card }]}>
           <CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor || colors.brandPrimary} size={28} />
@@ -138,7 +134,9 @@ export default function TransactionDetailScreen() {
         <Text style={[styles.section, { color: colors.brandTextSecondary }]}>Já apareceu antes</Text>
         <View style={[styles.groupCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
           {similarLoading ? (
-            <Text style={[styles.empty, { color: colors.brandTextSecondary }]}>Buscando histórico...</Text>
+            <View style={{ paddingVertical: 18, alignItems: 'center' }}>
+              <LoadingDog size={28} color={colors.brandPrimaryDark} />
+            </View>
           ) : similar.length === 0 ? (
             <Text style={[styles.empty, { color: colors.brandTextSecondary }]}>Sem registros parecidos.</Text>
           ) : (
@@ -169,6 +167,8 @@ export default function TransactionDetailScreen() {
           )}
         </View>
       </ScrollView>
+      <DogRefreshOverlay refreshing={refreshing} />
+      </View>
     </Screen>
   );
 }

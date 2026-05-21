@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
@@ -13,7 +13,8 @@ import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, CategoryStatsResponse } from '@/services/analytics.service';
-import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
+import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
 import { PeriodPickerSheet } from '@/ui/PeriodPickerSheet';
 import { TabScreen } from '@/ui/TabScreen';
 
@@ -136,10 +137,7 @@ export default function CategoriesScreen() {
   if (loading && !data) {
     return (
       <TabScreen>
-        <Skeleton height={120} />
-        <Skeleton />
-        <Skeleton />
-        <Skeleton />
+        <LoadingState />
       </TabScreen>
     );
   }
@@ -229,6 +227,7 @@ export default function CategoriesScreen() {
         onApply={(start, end) => setCustomRange({ start, end })}
       />
 
+      <View style={{ flex: 1 }}>
       {transitioning ? (
         <View style={{ flex: 1, gap: 10, marginTop: 6 }}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -254,13 +253,7 @@ export default function CategoriesScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => load('refresh')}
-              tintColor={colors.brandPrimaryDark}
-            />
-          }
+          refreshControl={dogRefreshControl(refreshing, () => load('refresh'))}
         >
           {items.length === 0 ? (
             <EmptyState
@@ -328,6 +321,8 @@ export default function CategoriesScreen() {
           )}
         </ScrollView>
       )}
+      <DogRefreshOverlay refreshing={refreshing} />
+      </View>
     </TabScreen>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { addMonths, endOfMonth, format, isWithinInterval, startOfMonth } from 'date-fns';
@@ -15,7 +15,9 @@ import { formatCurrency } from '@/lib/formatters';
 import { accountsService } from '@/services/accounts.service';
 import { transactionsService, TransactionsSummary } from '@/services/transactions.service';
 import { TransactionCard } from '@/ui/Cards';
-import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { LoadingDog } from '@/ui/LoadingDog';
+import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
+import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
 import { PeriodPickerSheet } from '@/ui/PeriodPickerSheet';
 import { TabScreen } from '@/ui/TabScreen';
 import type { Transaction } from '@/types/api.types';
@@ -209,7 +211,7 @@ export default function TransactionsScreen() {
   if (loading) {
     return (
       <TabScreen>
-        <Skeleton /><Skeleton /><Skeleton /><Skeleton />
+        <LoadingState />
       </TabScreen>
     );
   }
@@ -376,6 +378,7 @@ export default function TransactionsScreen() {
         </View>
       ) : null}
 
+      <View style={{ flex: 1 }}>
       {transitioning ? (
         <View style={{ flex: 1, gap: 10, marginTop: 6 }}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -429,14 +432,7 @@ export default function TransactionsScreen() {
         stickySectionHeadersEnabled={false}
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.4}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.brandPrimaryDark}
-            colors={[colors.brandPrimaryDark]}
-          />
-        }
+        refreshControl={dogRefreshControl(refreshing, handleRefresh)}
         ListEmptyComponent={
           <EmptyState
             title="Nenhuma transação"
@@ -445,7 +441,7 @@ export default function TransactionsScreen() {
         }
         ListFooterComponent={
           loadingMore ? (
-            <ActivityIndicator color={colors.brandPrimaryDark} style={{ marginVertical: 16 }} />
+            <View style={{ marginVertical: 16, alignItems: 'center' }}><LoadingDog size={32} color={colors.brandPrimaryDark} /></View>
           ) : sections.length > 0 ? (
             <Text style={[styles.footer, { color: colors.brandTextSecondary }]}>· · ·</Text>
           ) : null
@@ -454,6 +450,8 @@ export default function TransactionsScreen() {
         showsVerticalScrollIndicator={false}
       />
       )}
+      <DogRefreshOverlay refreshing={refreshing} />
+      </View>
     </TabScreen>
   );
 }

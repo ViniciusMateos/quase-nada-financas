@@ -1,20 +1,27 @@
 import { useCallback, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useInvestments } from '@/hooks/useInvestments';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
+import { formatCurrency } from '@/lib/formatters';
 import { accountsService } from '@/services/accounts.service';
 import { Button } from '@/ui/Button';
 import { AccountCard } from '@/ui/Cards';
-import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
+
+// Logo da Binance (losango dourado do BNB) via proxy de imagem já usado no app.
+const BINANCE_LOGO =
+  'https://images.weserv.nl/?url=raw.githubusercontent.com%2Fspothq%2Fcryptocurrency-icons%2Fmaster%2Fsvg%2Fcolor%2Fbnb.svg&output=png&w=120&h=120&fit=contain';
 
 export default function AccountsScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const { items, loading, error, load, remove, sync, rename } = useAccounts();
+  const { wallet } = useInvestments();
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusRefresh(load);
@@ -60,7 +67,7 @@ export default function AccountsScreen() {
   if (loading) {
     return (
       <TabScreen>
-        <Skeleton /><Skeleton /><Skeleton />
+        <LoadingState />
       </TabScreen>
     );
   }
@@ -104,6 +111,30 @@ export default function AccountsScreen() {
           />
         ))
       )}
+
+      {wallet?.connected ? (
+        <Pressable
+          onPress={() => navigation.navigate('Investimentos')}
+          style={({ pressed }) => [
+            styles.binanceCard,
+            { backgroundColor: colors.brandSurface, borderColor: colors.brandDivider },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <View style={styles.binanceLogo}>
+            <Image source={{ uri: BINANCE_LOGO }} style={{ width: 30, height: 30 }} resizeMode="contain" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.binanceName, { color: colors.brandTextPrimary }]}>Binance</Text>
+            <Text style={[styles.binanceMeta, { color: colors.brandTextSecondary }]}>
+              Carteira cripto{wallet.assets.length ? ` • ${wallet.assets.length} ${wallet.assets.length === 1 ? 'ativo' : 'ativos'}` : ''}
+            </Text>
+          </View>
+          <Text style={[styles.binanceBalance, { color: colors.brandTextPrimary }]}>
+            {formatCurrency(wallet.totalBRL)}
+          </Text>
+        </Pressable>
+      ) : null}
     </TabScreenScroll>
   );
 }
@@ -112,4 +143,9 @@ const styles = StyleSheet.create({
   padded: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   title: { fontSize: 24, fontWeight: '800' },
+  binanceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
+  binanceLogo: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  binanceName: { fontSize: 15, fontWeight: '700' },
+  binanceMeta: { fontSize: 12, marginTop: 2 },
+  binanceBalance: { fontSize: 17, fontWeight: '800' },
 });

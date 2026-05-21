@@ -15,7 +15,7 @@ import { normalizeError } from '@/lib/errorMap';
 import { accountsService } from '@/services/accounts.service';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { BankBadge } from '@/ui/BankBadge';
-import { ErrorState, Skeleton } from '@/ui/States';
+import { ErrorState, LoadingState } from '@/ui/States';
 import { TransactionCard } from '@/ui/Cards';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
 
@@ -157,9 +157,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <TabScreen>
-        <Skeleton height={140} />
-        <Skeleton height={96} />
-        <Skeleton height={240} />
+        <LoadingState />
       </TabScreen>
     );
   }
@@ -223,6 +221,24 @@ export default function DashboardScreen() {
         colors={colors}
         radius={radius}
       />
+
+      <Pressable
+        onPress={() => navigation.navigate('WeeklySummary')}
+        style={({ pressed }) => [
+          styles.weeklyRow,
+          { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card },
+          pressed && { opacity: 0.85 },
+        ]}
+      >
+        <View style={[styles.weeklyIcon, { backgroundColor: colors.brandPrimaryTint }]}>
+          <Ionicons name="stats-chart" size={20} color={colors.brandPrimaryDark} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.weeklyTitle, { color: colors.brandTextPrimary }]}>Resumo da semana</Text>
+          <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>Como foram seus últimos 7 dias</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
+      </Pressable>
 
       {bankCards.length > 0 ? (
         <>
@@ -440,6 +456,9 @@ const styles = StyleSheet.create({
   summary: { marginTop: 16, paddingVertical: 18, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center' },
   summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
   summaryDivider: { width: 1, height: 36 },
+  weeklyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 14 },
+  weeklyIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  weeklyTitle: { fontSize: 14, fontWeight: '800' },
   meta: { fontSize: 12 },
   income: { fontWeight: '800', fontSize: 18 },
   expense: { fontWeight: '800', fontSize: 18 },

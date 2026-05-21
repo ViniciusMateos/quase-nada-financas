@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
@@ -7,7 +7,8 @@ import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, InstallmentsResponse } from '@/services/analytics.service';
-import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
+import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
 import { TabScreen } from '@/ui/TabScreen';
 
 export default function InstallmentsScreen() {
@@ -41,8 +42,7 @@ export default function InstallmentsScreen() {
   if (loading) {
     return (
       <TabScreen>
-        <Skeleton height={140} />
-        <Skeleton /><Skeleton /><Skeleton />
+        <LoadingState />
       </TabScreen>
     );
   }
@@ -62,12 +62,11 @@ export default function InstallmentsScreen() {
     <TabScreen>
       <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Parcelamentos</Text>
 
+      <View style={{ flex: 1 }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} tintColor={colors.brandPrimaryDark} />
-        }
+        refreshControl={dogRefreshControl(refreshing, () => load('refresh'))}
       >
         <View style={[styles.summaryCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
           <View style={styles.summaryRow}>
@@ -156,6 +155,8 @@ export default function InstallmentsScreen() {
           ))
         )}
       </ScrollView>
+      <DogRefreshOverlay refreshing={refreshing} />
+      </View>
     </TabScreen>
   );
 }

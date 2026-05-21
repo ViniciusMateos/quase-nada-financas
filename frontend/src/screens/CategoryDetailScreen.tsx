@@ -9,7 +9,8 @@ import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { transactionsService } from '@/services/transactions.service';
 import { TransactionCard } from '@/ui/Cards';
-import { EmptyState, ErrorState, Skeleton } from '@/ui/States';
+import { EmptyState, ErrorState } from '@/ui/States';
+import { LoadingDog } from '@/ui/LoadingDog';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { Transaction } from '@/types/api.types';
@@ -123,8 +124,8 @@ export default function CategoryDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {loading ? (
-          <View>
-            <Skeleton /><Skeleton /><Skeleton />
+          <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+            <LoadingDog size={48} color={colors.brandPrimaryDark} />
           </View>
         ) : error ? (
           <ErrorState subtitle={error} onRetry={load} />

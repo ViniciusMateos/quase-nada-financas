@@ -1,13 +1,14 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/ui/Button';
+import { LoadingDog } from '@/ui/LoadingDog';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export function LoadingOverlay({ message }: { message?: string }) {
   const { colors } = useTheme();
   return (
     <View style={[styles.overlay, { backgroundColor: colors.brandOverlay }]}>
-      <ActivityIndicator size="large" color="#FFFFFF" />
+      <LoadingDog size={56} color="#FFFFFF" />
       {message ? <Text style={styles.overlayText}>{message}</Text> : null}
     </View>
   );
@@ -40,6 +41,16 @@ export function ErrorState({ title = 'Algo deu errado', subtitle = 'Verifique su
 export function Skeleton({ height = 68 }: { height?: number }) {
   const { colors, radius } = useTheme();
   return <View style={[{ height, borderRadius: radius.md, backgroundColor: colors.brandSkeleton, marginBottom: 12 }]} />;
+}
+
+/** Estado de carregamento padrão do app: cachorro girando centralizado. */
+export function LoadingState() {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.state}>
+      <LoadingDog size={56} color={colors.brandPrimaryDark} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

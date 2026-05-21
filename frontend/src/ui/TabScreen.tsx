@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
 
 type CommonProps = {
   children: ReactNode;
@@ -32,18 +33,11 @@ export function TabScreenScroll({ children, refreshing, onRefresh, contentContai
         style={[{ flex: 1 }, style]}
         contentContainerStyle={[{ paddingHorizontal: HORIZONTAL, paddingBottom: 32 }, contentContainerStyle]}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={!!refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.brandPrimaryDark}
-            />
-          ) : undefined
-        }
+        refreshControl={onRefresh ? dogRefreshControl(!!refreshing, onRefresh) : undefined}
       >
         {children}
       </ScrollView>
+      <DogRefreshOverlay refreshing={!!refreshing} />
     </View>
   );
 }
