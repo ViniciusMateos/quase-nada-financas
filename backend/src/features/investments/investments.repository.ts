@@ -63,6 +63,14 @@ export class InvestmentsRepository {
     return prisma.investmentPendingAction.update({ where: { id }, data });
   }
 
+  /** Pendências de lembrete (corretora) ainda abertas — pra auto-detectar aporte. */
+  listPendingReminders(): Promise<InvestmentPendingAction[]> {
+    return prisma.investmentPendingAction.findMany({
+      where: { status: "PENDING", actionType: "reminder" },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
   /** Expira PendingActions PENDING cujo dueAt já passou. */
   async expireOldPendingActions(): Promise<number> {
     const res = await prisma.investmentPendingAction.updateMany({

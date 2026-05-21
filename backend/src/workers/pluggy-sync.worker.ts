@@ -94,6 +94,15 @@ async function runExpirePending(): Promise<void> {
   }
 }
 
+async function runAutoCompleteAportes(): Promise<void> {
+  try {
+    const completed = await investmentsService.autoCompleteAportes();
+    if (completed > 0) logger.info({ completed }, "Aportes detectados e pendências fechadas");
+  } catch (err) {
+    logger.error({ err }, "Auto-complete aportes error");
+  }
+}
+
 // ---- Resumo semanal: segunda-feira 10h (horário de Brasília, UTC-3) ----
 const analyticsService = new AnalyticsService();
 
@@ -157,11 +166,16 @@ const fireHandle = setInterval(() => {
 void runExpirePending();
 const expireHandle = setInterval(() => void runExpirePending(), 10 * 60 * 1000);
 
+// Detecta aportes reais e fecha pendências a cada 30 min (no-op se não houver pendência)
+void runAutoCompleteAportes();
+const aportesHandle = setInterval(() => void runAutoCompleteAportes(), 30 * 60 * 1000);
+
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, "Worker shutdown");
   clearInterval(handle);
   clearInterval(fireHandle);
   clearInterval(expireHandle);
+  clearInterval(aportesHandle);
   await worker.close();
   await pluggySyncQueue.close();
   await prisma.$disconnect();

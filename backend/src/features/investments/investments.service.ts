@@ -1,9 +1,11 @@
-import type { InvestmentRule } from "@prisma/client";
+import type { InvestmentPendingAction, InvestmentRule } from "@prisma/client";
 import { logger } from "../../lib/logger.js";
 import { Errors } from "../../lib/errors.js";
 import { sendPushToUser } from "../../lib/push.js";
 import { InvestmentsRepository } from "./investments.repository.js";
 import { BinanceService } from "../binance/binance.service.js";
+import { AccountsRepository } from "../accounts/accounts.repository.js";
+import { PluggyClient } from "../../integrations/pluggy.client.js";
 
 function formatBrl(n: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
@@ -31,6 +33,8 @@ export type UpdateRuleInput = Partial<CreateRuleInput>;
 export class InvestmentsService {
   private readonly repo = new InvestmentsRepository();
   private readonly binance = new BinanceService();
+  private readonly accounts = new AccountsRepository();
+  private readonly pluggy = new PluggyClient();
 
   // -------------- Rules CRUD --------------
 
@@ -189,6 +193,75 @@ export class InvestmentsService {
 
   expireOldPending() {
     return this.repo.expireOldPendingActions();
+  }
+
+  /**
+   * Detecta aportes reais nas corretoras (via Pluggy) e fecha as pendências de
+   * lembrete sozinho. Só roda quando há pendência aberta. Casa por valor
+   * (tolerância 5% ou R$5) e data (movimento BUY depois da criação da pendência),
+   * pra evitar falso positivo. Pendência sem aporte detectado segue manual.
+   */
+  async autoCompleteAportes(): Promise<number> {
+    const pendings = await this.repo.listPendingReminders();
+    if (pendings.length === 0) return 0;
+
+    const byUser = new Map<string, InvestmentPendingAction[]>();
+    for (const p of pendings) {
+      const arr = byUser.get(p.userId) ?? [];
+      arr.push(p);
+      byUser.set(p.userId, arr);
+    }
+
+    let completed = 0;
+    for (const [userId, userPendings] of byUser) {
+      try {
+        const accounts = await this.accounts.findConnectedAccountsByUser(userId);
+        const since = userPendings.reduce(
+          (min, p) => (p.createdAt < min ? p.createdAt : min),
+          userPendings[0].createdAt
+        );
+
+        // Coleta movimentos de aporte (BUY) desde 'since'.
+        const buys: { amount: number; date: Date }[] = [];
+        for (const acc of accounts) {
+          const investments = await this.pluggy.listInvestments(acc.pluggyItemId);
+          for (const inv of investments.slice(0, 50)) {
+            const txs = await this.pluggy.listInvestmentTransactions(inv.id);
+            for (const tx of txs) {
+              if ((tx.type ?? "").toUpperCase() !== "BUY") continue;
+              const amount = Math.abs(tx.amount ?? 0);
+              const date = tx.date ? new Date(tx.date) : null;
+              if (amount <= 0 || !date || Number.isNaN(date.getTime()) || date < since) continue;
+              buys.push({ amount, date });
+            }
+          }
+        }
+
+        for (const p of userPendings) {
+          const tol = Math.max(5, p.amountBrl * 0.05);
+          const idx = buys.findIndex(
+            (b) => b.date >= p.createdAt && Math.abs(b.amount - p.amountBrl) <= tol
+          );
+          if (idx === -1) continue;
+          const matched = buys.splice(idx, 1)[0]; // consome pra não casar 2x
+          await this.repo.updatePendingAction(p.id, {
+            status: "EXECUTED",
+            executedAt: new Date(),
+            resultMessage: `Aporte de ${formatBrl(matched.amount)} detectado automaticamente`,
+          });
+          void sendPushToUser(
+            userId,
+            "Aporte confirmado ✅",
+            `Detectei seu aporte de ${formatBrl(matched.amount)} em ${p.asset} e marquei a tarefa como feita.`,
+            { type: "pending_completed", pendingId: p.id }
+          );
+          completed++;
+        }
+      } catch (err) {
+        logger.error({ err, userId }, "Falha no auto-complete de aportes");
+      }
+    }
+    return completed;
   }
 
   // -------------- Internas --------------
