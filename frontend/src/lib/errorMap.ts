@@ -29,7 +29,13 @@ export function normalizeError(error: any): AppError {
   if (error instanceof AppError) return error;
   if (!error.response) return new AppError('NETWORK_ERROR', messages.NETWORK_ERROR);
 
-  const payload = error.response.data?.error;
+  const data = error.response.data;
+  // Aceita 2 formatos de resposta de erro:
+  //  - aninhado: { error: { code, message, statusCode } }  (handler custom)
+  //  - plano:    { code, message, statusCode, error }       (serializer default do Fastify)
+  // O serializer default põe em `error` o nome HTTP (string "Unauthorized"),
+  // então só tratamos `data.error` como payload quando for objeto.
+  const payload = data?.error && typeof data.error === 'object' ? data.error : data;
   const code = payload?.code || (error.response.status === 429 ? 'RATE_LIMITED' : 'UNEXPECTED');
   const message = messages[code] || payload?.message || 'Nao foi possivel concluir a operacao.';
   return new AppError(code, message, error.response.status);
