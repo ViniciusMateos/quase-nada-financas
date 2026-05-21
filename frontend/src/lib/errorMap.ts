@@ -20,6 +20,7 @@ const messages: Record<string, string> = {
   INVALID_CHALLENGE_TOKEN: 'Confirmacao expirada. Tente novamente.',
   INVALID_AMOUNT: 'Digite um valor valido para a ordem.',
   BINANCE_ORDER_FAILED: 'A Binance rejeitou a ordem.',
+  INSUFFICIENT_BALANCE: 'Saldo insuficiente na Binance. Carregue sua conta e tente de novo.',
   RATE_LIMITED: 'Muitas tentativas. Aguarde um pouco.',
   NETWORK_ERROR: 'Sem conexao. Verifique sua internet e tente novamente.'
 };

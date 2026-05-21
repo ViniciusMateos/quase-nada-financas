@@ -1,9 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { TransactionsRepository } from "./transactions.repository.js";
 import { Errors } from "../../lib/errors.js";
+import { logger } from "../../lib/logger.js";
 import { MCC_TO_CATEGORY_NAME } from "./mcc-map.js";
 import { DEFAULT_CATEGORIES } from "../categories/categories.seed.js";
+import { InvestmentsService } from "../investments/investments.service.js";
 import type { PluggyTransaction } from "../../integrations/pluggy.client.js";
+
+const SALARY_CATEGORY_ID = "00000000-0000-4000-8000-00000000000E";
 
 export interface ListFilters {
   cursor?: string;
@@ -23,6 +27,7 @@ interface CursorPayload {
 
 export class TransactionsService {
   private readonly repo = new TransactionsRepository();
+  private readonly investments = new InvestmentsService();
 
   async listTransactions(userId: string, filters: ListFilters) {
     const cursor = decodeCursor(filters.cursor);
@@ -266,6 +271,13 @@ export class TransactionsService {
         rawData: ptx as unknown as Prisma.InputJsonValue,
       });
       inserted++;
+
+      // Trigger event: salário recebido → cria pending actions das regras
+      if (categoryId === SALARY_CATEGORY_ID && normalizedAmount > 0) {
+        this.investments.onSalaryReceived(userId, normalizedAmount).catch((err) => {
+          logger.error({ err, userId, txId: ptx.id }, "Erro ao processar trigger salary_received");
+        });
+      }
     }
 
     return inserted;
