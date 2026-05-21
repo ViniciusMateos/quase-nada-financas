@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import { AuthRepository } from "./auth.repository.js";
+import { prisma } from "../../config/database.js";
 import { Errors } from "../../lib/errors.js";
 import {
   signAccessToken,
@@ -21,22 +22,22 @@ export interface AuthTokens {
 }
 
 export interface AuthResult extends AuthTokens {
-  user: { id: string; email: string };
+  user: { id: string; email: string; name: string | null };
 }
 
 export class AuthService {
   private readonly repo = new AuthRepository();
 
-  async register(email: string, password: string): Promise<AuthResult> {
+  async register(email: string, password: string, name?: string): Promise<AuthResult> {
     const normalized = email.toLowerCase().trim();
     const existing = await this.repo.findUserByEmail(normalized);
     if (existing) throw Errors.Conflict("Email já cadastrado");
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const user = await this.repo.createUser(normalized, passwordHash);
+    const user = await this.repo.createUser(normalized, passwordHash, name?.trim() || null);
     const tokens = await this.issueTokens(user.id);
 
-    return { user: { id: user.id, email: user.email }, ...tokens };
+    return { user: { id: user.id, email: user.email, name: user.name }, ...tokens };
   }
 
   async login(email: string, password: string, deviceInfo?: string): Promise<AuthResult> {
@@ -48,7 +49,7 @@ export class AuthService {
     if (!ok) throw Errors.InvalidCredentials();
 
     const tokens = await this.issueTokens(user.id, deviceInfo);
-    return { user: { id: user.id, email: user.email }, ...tokens };
+    return { user: { id: user.id, email: user.email, name: user.name }, ...tokens };
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
@@ -100,16 +101,47 @@ export class AuthService {
     }
   }
 
-  async getMe(userId: string): Promise<{ id: string; email: string; createdAt: Date }> {
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<AuthTokens> {
     const user = await this.repo.findUserById(userId);
     if (!user) throw Errors.NotFound("Usuário não encontrado");
-    return { id: user.id, email: user.email, createdAt: user.createdAt };
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw Errors.Unauthorized("Senha atual incorreta");
+
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.repo.updatePassword(userId, passwordHash);
+    // Segurança: revoga TODAS as sessões (incluindo outros devices) e emite uma
+    // nova só pra este device, devolvida pra o app salvar — assim quem trocou a
+    // senha continua logado e qualquer outro device cai.
+    await this.repo.revokeAllSessionsOfUser(userId);
+    const tokens = await this.issueTokens(userId, user.email);
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn };
+  }
+
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    const user = await this.repo.findUserById(userId);
+    if (!user) throw Errors.NotFound("Usuário não encontrado");
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) throw Errors.Unauthorized("Senha incorreta");
+
+    await this.repo.deleteUserCascade(userId);
+  }
+
+  async getMe(userId: string): Promise<{ id: string; email: string; name: string | null; createdAt: Date }> {
+    const user = await this.repo.findUserById(userId);
+    if (!user) throw Errors.NotFound("Usuário não encontrado");
+    return { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt };
   }
 
   async createBiometricChallenge(userId: string): Promise<string> {
     const token = uuidv4();
     await redis.set(`${BIOMETRIC_PREFIX}${token}`, userId, "EX", BIOMETRIC_TTL);
     return token;
+  }
+
+  async savePushToken(userId: string, pushToken: string | null): Promise<void> {
+    await prisma.user.update({ where: { id: userId }, data: { pushToken } });
   }
 
   /**

@@ -15,6 +15,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         properties: {
           email: { type: "string", format: "email", maxLength: 255 },
           password: { type: "string", minLength: 8, maxLength: 128 },
+          name: { type: "string", maxLength: 120 },
         },
         additionalProperties: false,
       },
@@ -74,5 +75,47 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/biometric-challenge", {
     preHandler: authenticate,
     handler: controller.biometricChallenge,
+  });
+
+  app.post("/push-token", {
+    preHandler: authenticate,
+    schema: {
+      body: {
+        type: "object",
+        required: ["pushToken"],
+        properties: { pushToken: { type: ["string", "null"], maxLength: 256 } },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.savePushToken,
+  });
+
+  app.patch("/password", {
+    preHandler: authenticate,
+    schema: {
+      body: {
+        type: "object",
+        required: ["currentPassword", "newPassword"],
+        properties: {
+          currentPassword: { type: "string", minLength: 1, maxLength: 128 },
+          newPassword: { type: "string", minLength: 8, maxLength: 128 },
+        },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.changePassword,
+  });
+
+  app.delete("/account", {
+    preHandler: authenticate,
+    schema: {
+      body: {
+        type: "object",
+        required: ["password"],
+        properties: { password: { type: "string", minLength: 1, maxLength: 128 } },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.deleteAccount,
   });
 }

@@ -1,83 +1,219 @@
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Button } from '@/ui/Button';
+import { normalizeError } from '@/lib/errorMap';
+import { BottomSheet } from '@/ui/BottomSheet';
+import { LoadingDog } from '@/ui/LoadingDog';
 import { TabScreen } from '@/ui/TabScreen';
 
+const AVATAR_COLORS = [
+  '#22C55E', '#16A34A', '#0EA5E9',
+  '#6366F1', '#8B5CF6', '#EC4899',
+  '#F59E0B', '#EF4444', '#64748B',
+];
+
 export default function SettingsScreen() {
-  const { user, logout, loading } = useAuth();
+  const navigation = useNavigation<any>();
+  const { user, logout, loading, savedAccounts, updateSavedAccount, deleteAccount } = useAuth();
   const { colors, radius, shadows, mode, setMode } = useTheme();
-  const [biometrics, setBiometrics] = useState(Boolean(user?.biometricsEnabled));
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const currentAccount = savedAccounts.find((a) => a.email === user?.email);
+  const avatarColor = currentAccount?.color || colors.brandPrimaryDark;
+
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  // Modal de exclusão de conta
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function pickColor(color: string) {
+    if (user?.email) updateSavedAccount(user.email, { color });
+    setColorPickerOpen(false);
+  }
+
+  function confirmLogout() {
+    Alert.alert('Sair da conta?', 'Você volta pra tela de contas e pode entrar de novo com Face ID.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: logout },
+    ]);
+  }
+
+  function openDelete() {
+    setDeletePassword('');
+    setShowDeletePassword(false);
+    setDeleteError(null);
+    setDeleteOpen(true);
+  }
+
+  async function handleDelete() {
+    if (!deletePassword) { setDeleteError('Digite sua senha'); return; }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount(deletePassword);
+      // sucesso: AuthContext zera a sessão → navega pro hub automaticamente
+    } catch (err) {
+      setDeleteError(normalizeError(err).message);
+      setDeletePassword('');
+      setDeleting(false);
+    }
+  }
 
   return (
     <TabScreen>
-      <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Ajustes</Text>
-
-      <View style={[styles.card, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
-        <View style={styles.row}>
-          <View style={[styles.avatar, { backgroundColor: colors.brandPrimaryTint }]}>
-            <Text style={[styles.avatarText, { color: colors.brandPrimaryDark }]}>
-              {(user?.name?.[0] || user?.email?.[0] || '?').toUpperCase()}
-            </Text>
+      <Text style={styles.title}>Ajustes</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+        {/* Perfil + cor do avatar */}
+        <View style={[styles.card, { ...shadows.card }]}>
+          <View style={styles.profileRow}>
+            <View style={styles.avatarWrap}>
+              <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
+                <Image source={require('../../assets/logo.png')} style={styles.avatarLogo} />
+              </View>
+              <Pressable
+                style={[styles.editColorBtn, { backgroundColor: colors.brandSurface, borderColor: colors.brandDivider }]}
+                onPress={() => setColorPickerOpen((v) => !v)}
+                hitSlop={8}
+                accessibilityLabel="Mudar cor do avatar"
+              >
+                <Ionicons name="pencil" size={13} color={colors.brandTextSecondary} />
+              </Pressable>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name} numberOfLines={1}>{user?.name || 'Conta'}</Text>
+              <Text style={styles.email} numberOfLines={1}>{user?.email}</Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: colors.brandTextPrimary }]}>{user?.name || 'Conta'}</Text>
-            <Text style={[styles.email, { color: colors.brandTextSecondary }]}>{user?.email}</Text>
+
+          {colorPickerOpen ? (
+            <View style={styles.colorPicker}>
+              {AVATAR_COLORS.map((color) => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: color },
+                    avatarColor === color && styles.swatchSelected,
+                  ]}
+                  onPress={() => pickColor(color)}
+                  accessibilityLabel={`Cor ${color}`}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        {/* Aparência */}
+        <Text style={styles.section}>Aparência</Text>
+        <View style={[styles.card, { ...shadows.card }]}>
+          <View style={styles.themeRow}>
+            <ThemeChoice label="Claro" icon="sunny-outline" active={mode === 'light'} onPress={() => setMode('light')} />
+            <ThemeChoice label="Escuro" icon="moon-outline" active={mode === 'dark'} onPress={() => setMode('dark')} />
           </View>
         </View>
-      </View>
 
-      <Text style={[styles.section, { color: colors.brandTextSecondary }]}>Aparência</Text>
-      <View style={[styles.card, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
-        <View style={styles.themeRow}>
-          <ThemeChoice
-            label="Claro"
-            icon="sunny-outline"
-            active={mode === 'light'}
-            onPress={() => setMode('light')}
-          />
-          <ThemeChoice
-            label="Escuro"
-            icon="moon-outline"
-            active={mode === 'dark'}
-            onPress={() => setMode('dark')}
-          />
+        {/* Conta */}
+        <Text style={styles.section}>Conta</Text>
+        <View style={[styles.menuCard, { ...shadows.card }]}>
+          <MenuItem icon="key-outline" label="Alterar senha" onPress={() => navigation.navigate('ChangePassword')} colors={colors} styles={styles} />
+          <View style={styles.divider} />
+          <MenuItem icon="swap-horizontal-outline" label="Trocar de conta" onPress={logout} colors={colors} styles={styles} />
+          <View style={styles.divider} />
+          <MenuItem icon="trash-outline" label="Excluir conta" destructive onPress={openDelete} colors={colors} styles={styles} />
         </View>
-      </View>
 
-      <Text style={[styles.section, { color: colors.brandTextSecondary }]}>Segurança</Text>
-      <View style={[styles.card, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: colors.brandTextPrimary }]}>Biometria</Text>
-            <Text style={[styles.email, { color: colors.brandTextSecondary }]}>Use Face ID ao confirmar ordens</Text>
+        {/* Sair */}
+        <Pressable style={styles.logoutBtn} onPress={confirmLogout} disabled={loading}>
+          {loading ? (
+            <LoadingDog size={24} color={colors.brandError} />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={20} color={colors.brandError} />
+              <Text style={styles.logoutText}>Sair</Text>
+            </>
+          )}
+        </Pressable>
+      </ScrollView>
+
+      {/* Sheet excluir conta — BottomSheet (fundo escurece no lugar + arrasta pra fechar) */}
+      {deleteOpen && (
+        <BottomSheet onClose={() => setDeleteOpen(false)} maxHeightFraction={0.7} asNativeModal>
+          <Text style={styles.sheetTitle}>Excluir conta</Text>
+          <Text style={styles.sheetWarning}>
+            Essa ação é irreversível. Todas as suas contas conectadas, transações e regras serão apagadas pra sempre.
+          </Text>
+
+          {deleteError ? <Text style={styles.formError}>{deleteError}</Text> : null}
+
+          <View style={[styles.inputWrapper, deleteError && styles.inputError]}>
+            <TextInput
+              style={styles.inputInner}
+              placeholder="Confirme sua senha"
+              placeholderTextColor={colors.brandTextSecondary}
+              value={deletePassword}
+              onChangeText={(t) => { setDeletePassword(t); if (deleteError) setDeleteError(null); }}
+              secureTextEntry={!showDeletePassword}
+              onSubmitEditing={handleDelete}
+              autoFocus
+              editable={!deleting}
+            />
+            <Pressable onPress={() => setShowDeletePassword((s) => !s)} hitSlop={8} style={{ paddingRight: 14 }}>
+              <Ionicons name={showDeletePassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.brandTextSecondary} />
+            </Pressable>
           </View>
-          <Switch
-            value={biometrics}
-            onValueChange={setBiometrics}
-            trackColor={{ false: colors.brandDivider, true: colors.brandPrimary }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-      </View>
 
-      <View style={{ marginTop: 28 }}>
-        <Button
-          label="Sair"
-          variant="destructive"
-          loading={loading}
-          icon="log-out-outline"
-          onPress={() =>
-            Alert.alert('Sair da conta?', 'Você vai precisar entrar de novo.', [
-              { text: 'Cancelar', style: 'cancel' },
-              { text: 'Sair', style: 'destructive', onPress: logout },
-            ])
-          }
-        />
-      </View>
+          <View style={styles.sheetActions}>
+            <Pressable style={[styles.cancelBtn]} onPress={() => setDeleteOpen(false)} disabled={deleting}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </Pressable>
+            <Pressable style={[styles.deleteBtn, deleting && { opacity: 0.6 }]} onPress={handleDelete} disabled={deleting}>
+              {deleting ? <LoadingDog size={24} color="#FFFFFF" /> : <Text style={styles.deleteText}>Excluir</Text>}
+            </Pressable>
+          </View>
+        </BottomSheet>
+      )}
     </TabScreen>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  onPress,
+  destructive,
+  colors,
+  styles,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+  colors: any;
+  styles: any;
+}) {
+  const tint = destructive ? colors.brandError : colors.brandTextPrimary;
+  return (
+    <Pressable style={styles.menuItem} onPress={onPress}>
+      <Ionicons name={icon} size={20} color={destructive ? colors.brandError : colors.brandTextSecondary} />
+      <Text style={[styles.menuItemText, { color: tint }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
+    </Pressable>
   );
 }
 
@@ -88,7 +224,7 @@ function ThemeChoice({
   onPress,
 }: {
   label: string;
-  icon: keyof typeof import('@expo/vector-icons/build/Ionicons').default.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap;
   active: boolean;
   onPress: () => void;
 }) {
@@ -101,11 +237,7 @@ function ThemeChoice({
       onPress={onPress}
       style={[
         themeStyles.choice,
-        {
-          backgroundColor: bg,
-          borderColor: border,
-          borderRadius: radius.md,
-        },
+        { backgroundColor: bg, borderColor: border, borderRadius: radius.md },
         active && {
           shadowColor: colors.brandPrimary,
           shadowOpacity: mode === 'dark' ? 0.5 : 0.25,
@@ -125,15 +257,38 @@ const themeStyles = StyleSheet.create({
   choiceLabel: { fontWeight: '700', fontSize: 14 },
 });
 
-const styles = StyleSheet.create({
-  padded: { paddingHorizontal: 16, gap: 6 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: 12 },
-  card: { padding: 16 },
-  section: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingLeft: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontWeight: '900', fontSize: 18 },
-  name: { fontSize: 16, fontWeight: '800' },
-  email: { marginTop: 4, fontSize: 13 },
-  themeRow: { flexDirection: 'row', gap: 10 },
-});
+function makeStyles(c: any) {
+  return StyleSheet.create({
+    title: { fontSize: 24, fontWeight: '800', color: c.brandTextPrimary, marginBottom: 12 },
+    card: { backgroundColor: c.brandSurface, borderRadius: 16, padding: 16, marginBottom: 4 },
+    themeRow: { flexDirection: 'row', gap: 10 },
+    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    avatarWrap: {},
+    avatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+    avatarLogo: { width: 32, height: 32, resizeMode: 'contain', tintColor: '#FFFFFF' },
+    editColorBtn: { position: 'absolute', bottom: -4, right: -6, width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    name: { fontSize: 16, fontWeight: '800', color: c.brandTextPrimary },
+    email: { marginTop: 4, fontSize: 13, color: c.brandTextSecondary },
+    colorPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, justifyContent: 'center', marginTop: 18, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.brandDivider },
+    swatch: { width: 40, height: 40, borderRadius: 20 },
+    swatchSelected: { borderWidth: 3, borderColor: c.brandSurface, transform: [{ scale: 1.12 }] },
+    section: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: c.brandTextSecondary, marginTop: 22, marginBottom: 8, paddingLeft: 4 },
+    menuCard: { backgroundColor: c.brandSurface, borderRadius: 16, overflow: 'hidden', marginBottom: 4 },
+    menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 16 },
+    menuItemText: { flex: 1, fontSize: 16, fontWeight: '600' },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.brandDivider, marginLeft: 50 },
+    logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 28, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: c.brandError, backgroundColor: 'rgba(239, 68, 68, 0.08)' },
+    logoutText: { color: c.brandError, fontSize: 16, fontWeight: '700' },
+    sheetTitle: { fontSize: 20, fontWeight: '800', color: c.brandTextPrimary, marginBottom: 10 },
+    sheetWarning: { fontSize: 14, lineHeight: 20, color: c.brandTextSecondary, marginBottom: 18 },
+    formError: { color: c.brandTextError, fontWeight: '700', marginBottom: 12 },
+    inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.brandSurfaceAlt, borderWidth: 1, borderColor: c.brandDivider, borderRadius: 12, minHeight: 50, marginBottom: 20 },
+    inputInner: { flex: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: c.brandTextPrimary },
+    inputError: { borderColor: c.brandError },
+    sheetActions: { flexDirection: 'row', gap: 12 },
+    cancelBtn: { flex: 1, borderWidth: 1, borderColor: c.brandDivider, borderRadius: 12, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', minHeight: 52 },
+    cancelText: { fontSize: 16, fontWeight: '700', color: c.brandTextPrimary },
+    deleteBtn: { flex: 1, backgroundColor: c.brandError, borderRadius: 12, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', minHeight: 52 },
+    deleteText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  });
+}

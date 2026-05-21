@@ -1,15 +1,18 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { AuthService } from "./auth.service.js";
 
-interface RegisterBody { email: string; password: string }
+interface RegisterBody { email: string; password: string; name?: string }
 interface LoginBody { email: string; password: string; deviceInfo?: string }
 interface RefreshBody { refreshToken: string }
+interface PushTokenBody { pushToken: string | null }
+interface ChangePasswordBody { currentPassword: string; newPassword: string }
+interface DeleteAccountBody { password: string }
 
 export class AuthController {
   private readonly service = new AuthService();
 
   register = async (req: FastifyRequest<{ Body: RegisterBody }>, reply: FastifyReply) => {
-    const result = await this.service.register(req.body.email, req.body.password);
+    const result = await this.service.register(req.body.email, req.body.password, req.body.name);
     return reply.status(201).send(result);
   };
 
@@ -40,5 +43,20 @@ export class AuthController {
   biometricChallenge = async (req: FastifyRequest, reply: FastifyReply) => {
     const token = await this.service.createBiometricChallenge(req.userId);
     return reply.send({ biometricToken: token, expiresInSeconds: 60 });
+  };
+
+  savePushToken = async (req: FastifyRequest<{ Body: PushTokenBody }>, reply: FastifyReply) => {
+    await this.service.savePushToken(req.userId, req.body.pushToken);
+    return reply.status(204).send();
+  };
+
+  changePassword = async (req: FastifyRequest<{ Body: ChangePasswordBody }>, reply: FastifyReply) => {
+    const tokens = await this.service.changePassword(req.userId, req.body.currentPassword, req.body.newPassword);
+    return reply.send(tokens);
+  };
+
+  deleteAccount = async (req: FastifyRequest<{ Body: DeleteAccountBody }>, reply: FastifyReply) => {
+    await this.service.deleteAccount(req.userId, req.body.password);
+    return reply.status(204).send();
   };
 }
