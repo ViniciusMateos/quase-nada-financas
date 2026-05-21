@@ -22,6 +22,22 @@ model User {
   investmentRules  InvestmentRule[]
   investmentPendingActions InvestmentPendingAction[]
   categoryRules    CategoryRule[]
+  portfolioSnapshots PortfolioSnapshot[]
+}
+
+// Foto diária da carteira de investimentos (corretoras) pra calcular valorização,
+// já que o Pluggy não retorna lucro. assets = { [investmentId]: valorAtualBRL }.
+model PortfolioSnapshot {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String   // YYYY-MM-DD (1 por usuário por dia)
+  total     Float
+  assets    Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 
 model Session {
@@ -49,6 +65,9 @@ model ConnectedAccount {
   primaryColor     String?
   consentExpiresAt DateTime?
   status           String        @default("ACTIVE")
+  // Corretora (tem investimentos): excluída do saldo e das transações,
+  // já que o dinheiro aplicado não é gasto/saldo disponível.
+  isInvestment     Boolean       @default(false)
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   bankAccounts     BankAccount[]
   createdAt        DateTime      @default(now())

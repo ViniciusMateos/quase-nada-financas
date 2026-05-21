@@ -8,6 +8,7 @@ import CategoriesScreen from '@/screens/CategoriesScreen';
 import SubscriptionsScreen from '@/screens/SubscriptionsScreen';
 import InstallmentsScreen from '@/screens/InstallmentsScreen';
 import InvestmentsScreen from '@/screens/InvestmentsScreen';
+import AssetsScreen from '@/screens/AssetsScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
 import { TopTabBar } from '@/ui/TopTabBar';
 
@@ -31,6 +32,7 @@ export function AppTabs() {
       <Tab.Screen name="Assinaturas" component={SubscriptionsScreen} />
       <Tab.Screen name="Parcelamentos" component={InstallmentsScreen} />
       <Tab.Screen name="Investimentos" component={InvestmentsScreen} />
+      <Tab.Screen name="Ativos" component={AssetsScreen} />
       <Tab.Screen name="Contas" component={AccountsScreen} />
       <Tab.Screen name="Configuracoes" component={SettingsScreen} />
     </Tab.Navigator>

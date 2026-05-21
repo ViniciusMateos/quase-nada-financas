@@ -11,6 +11,7 @@ const ROUTE_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; iconAct
   Assinaturas: { icon: 'repeat-outline', iconActive: 'repeat', label: 'Assinaturas' },
   Parcelamentos: { icon: 'card-outline', iconActive: 'card', label: 'Parcelamentos' },
   Investimentos: { icon: 'trending-up-outline', iconActive: 'trending-up', label: 'Investir' },
+  Ativos: { icon: 'pie-chart-outline', iconActive: 'pie-chart', label: 'Ativos' },
   Contas: { icon: 'wallet-outline', iconActive: 'wallet', label: 'Contas' },
   Configuracoes: { icon: 'settings-outline', iconActive: 'settings', label: 'Ajustes' },
 };

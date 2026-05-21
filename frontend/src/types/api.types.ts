@@ -31,6 +31,7 @@ export type Account = {
   currency?: 'BRL';
   lastSyncedAt?: string | null;
   status?: string;
+  isInvestment?: boolean;
   bankAccounts?: BankAccount[];
 };
 export type Transaction = {

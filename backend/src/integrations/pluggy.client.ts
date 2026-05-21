@@ -38,6 +38,32 @@ export interface PluggyTransaction {
   creditCardMetadata?: { installmentNumber?: number; totalInstallments?: number };
 }
 
+export interface PluggyInvestment {
+  id: string;
+  name?: string;
+  type?: string;       // MUTUAL_FUND | FIXED_INCOME | EQUITY | ETF | SECURITY | COE | ...
+  subtype?: string;    // STOCK | REAL_ESTATE_FUND | TREASURY | CDB | LCI | LCA | ...
+  currencyCode?: string;
+  quantity?: number;
+  value?: number;       // valor unitário/cota atual
+  amount?: number;      // valor investido (bruto)
+  balance?: number;     // valor líquido atual
+  amountProfit?: number;// lucro/prejuízo
+  amountWithdrawal?: number; // disponível pra resgate
+  annualRate?: number;
+  lastTwelveMonthsRate?: number;
+  dueDate?: string;     // vencimento (renda fixa)
+}
+
+export interface PluggyInvestmentTransaction {
+  id: string;
+  type?: string;   // BUY | SELL | TAX | TRANSFER
+  date?: string;
+  amount?: number;
+  quantity?: number;
+  value?: number;
+}
+
 interface PluggyAuthResponse { apiKey: string }
 interface PluggyConnectTokenResponse { accessToken: string }
 interface PluggyItemResponse {
@@ -188,6 +214,37 @@ export class PluggyClient {
     }
 
     return all;
+  }
+
+  /**
+   * Lista os investimentos de um item (corretora conectada via Open Finance).
+   * Retorna [] em 4xx — contas que não são de investimento (ex: banco puro)
+   * podem responder erro, e isso não deve quebrar o portfólio.
+   */
+  async listInvestments(itemId: string): Promise<PluggyInvestment[]> {
+    const apiKey = await this.getApiKey();
+    const res = await request(`${env.PLUGGY_API_URL}/investments?itemId=${encodeURIComponent(itemId)}`, {
+      method: "GET",
+      headers: { "X-API-KEY": apiKey },
+    });
+    if (res.statusCode >= 400) {
+      logger.warn({ status: res.statusCode, itemId }, "Pluggy listInvestments sem dados");
+      return [];
+    }
+    const json = (await res.body.json()) as { results?: PluggyInvestment[] };
+    return json.results ?? [];
+  }
+
+  /** Movimentos de um investimento (BUY/SELL/TAX/TRANSFER). [] em 4xx. */
+  async listInvestmentTransactions(investmentId: string): Promise<PluggyInvestmentTransaction[]> {
+    const apiKey = await this.getApiKey();
+    const res = await request(
+      `${env.PLUGGY_API_URL}/investments/${encodeURIComponent(investmentId)}/transactions`,
+      { method: "GET", headers: { "X-API-KEY": apiKey } }
+    );
+    if (res.statusCode >= 400) return [];
+    const json = (await res.body.json()) as { results?: PluggyInvestmentTransaction[] };
+    return json.results ?? [];
   }
 
   async deleteItem(itemId: string): Promise<void> {
