@@ -3,6 +3,7 @@ import { env } from '@/config/env';
 import { authEvents } from '@/lib/authEvents';
 import { normalizeError } from '@/lib/errorMap';
 import { tokenStorage } from '@/lib/tokenStorage';
+import { syncSavedAccountToken } from '@/lib/savedAccounts';
 import { debugLog } from '@/lib/debugLog';
 
 type QueuedRequest = {
@@ -61,6 +62,9 @@ apiClient.interceptors.response.use(
 
         const { data } = await axios.post(`${env.apiBaseUrl}/auth/refresh`, { refreshToken });
         await tokenStorage.saveTokens(data.accessToken, data.refreshToken);
+        // Mantém a conta salva com o token mais novo (evita 403 de reuso no hub).
+        const activeEmail = await tokenStorage.getActiveEmail();
+        if (activeEmail) await syncSavedAccountToken(activeEmail, data.refreshToken);
         flushQueue(null, data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return apiClient(original);

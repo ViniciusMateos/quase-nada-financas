@@ -1,11 +1,14 @@
 import { Suspense } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { LoadingDog } from '@/ui/LoadingDog';
 import { AppTabs } from '@/navigation/AppTabs';
+import AccountHubScreen from '@/screens/AccountHubScreen';
 import LoginScreen from '@/screens/LoginScreen';
+import RegisterScreen from '@/screens/RegisterScreen';
 import SplashScreen from '@/screens/SplashScreen';
 import ConnectBankScreen from '@/screens/ConnectBankScreen';
 import TransactionDetailScreen from '@/screens/TransactionDetailScreen';
@@ -14,6 +17,11 @@ import EditTransactionSheet from '@/screens/EditTransactionSheet';
 import ConnectBinanceScreen from '@/screens/ConnectBinanceScreen';
 import NewOrderSheet from '@/screens/NewOrderSheet';
 import OrderResultScreen from '@/screens/OrderResultScreen';
+import InvestmentRulesScreen from '@/screens/InvestmentRulesScreen';
+import EditInvestmentRuleScreen from '@/screens/EditInvestmentRuleScreen';
+import PendingActionsScreen from '@/screens/PendingActionsScreen';
+import WeeklySummaryScreen from '@/screens/WeeklySummaryScreen';
+import ChangePasswordScreen from '@/screens/ChangePasswordScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,7 +29,7 @@ function RouteFallback() {
   const { colors } = useTheme();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandBackground }}>
-      <ActivityIndicator color={colors.brandPrimaryDark} />
+      <LoadingDog size={56} color={colors.brandPrimaryDark} />
     </View>
   );
 }
@@ -67,7 +75,7 @@ export function RootNavigator() {
               <Stack.Screen
                 name="EditTransaction"
                 component={EditTransactionSheet}
-                options={{ presentation: 'transparentModal', animation: 'none' }}
+                options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }}
               />
               <Stack.Screen
                 name="ConnectBinance"
@@ -77,12 +85,21 @@ export function RootNavigator() {
               <Stack.Screen
                 name="NewOrder"
                 component={NewOrderSheet}
-                options={{ presentation: 'transparentModal', animation: 'none' }}
+                options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }}
               />
               <Stack.Screen name="OrderResult" component={OrderResultScreen} options={{ animation: 'fade' }} />
+              <Stack.Screen name="InvestmentRules" component={InvestmentRulesScreen} />
+              <Stack.Screen name="EditInvestmentRule" component={EditInvestmentRuleScreen} />
+              <Stack.Screen name="PendingActions" component={PendingActionsScreen} />
+              <Stack.Screen name="WeeklySummary" component={WeeklySummaryScreen} />
+              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
             </>
           ) : (
-            <Stack.Screen name="Login" component={LoginScreen} options={{ animation: 'fade' }} />
+            <>
+              <Stack.Screen name="AccountHub" component={AccountHubScreen} options={{ animation: 'fade' }} />
+              <Stack.Screen name="Login" component={LoginScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="Register" component={RegisterScreen} options={{ animation: 'slide_from_right' }} />
+            </>
           )}
         </Stack.Navigator>
       </Suspense>

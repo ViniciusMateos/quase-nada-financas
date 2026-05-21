@@ -20,34 +20,36 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { normalizeError } from '@/lib/errorMap';
 import { LoadingDog } from '@/ui/LoadingDog';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const navigation = useNavigation<any>();
-  const { login, loading } = useAuth();
+  const { register, loading } = useAuth();
   const { colors, mode, toggle } = useTheme();
   const isDark = mode === 'dark';
   const { width } = useWindowDimensions();
   const logoSize = Math.min(width * 0.32, 120);
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; form?: string }>({});
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   async function submit() {
     const next: typeof errors = {};
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed.includes('@')) next.email = 'Digite um e-mail válido';
-    if (!password) next.password = 'Senha é obrigatória';
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    if (trimmedName.length < 2) next.name = 'Nome deve ter ao menos 2 caracteres';
+    if (!trimmedEmail.includes('@')) next.email = 'Digite um e-mail válido';
+    if (password.length < 8) next.password = 'A senha precisa ter ao menos 8 caracteres';
     setErrors(next);
     if (Object.keys(next).length) return;
 
     try {
-      await login({ email: trimmed, password });
+      await register({ name: trimmedName, email: trimmedEmail, password });
     } catch (err) {
       setErrors({ form: normalizeError(err).message });
-      setPassword('');
     }
   }
 
@@ -63,11 +65,26 @@ export default function LoginScreen() {
           />
 
           <View style={styles.header}>
-            <Text style={styles.title}>Entrar</Text>
-            <Text style={styles.subtitle}>Acesse sua conta</Text>
+            <Text style={styles.title}>Criar conta</Text>
+            <Text style={styles.subtitle}>Bem-vindo ao Quase Nada Finanças</Text>
           </View>
 
           {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Nome</Text>
+            <TextInput
+              style={[styles.input, errors.name && styles.inputError]}
+              placeholder="Seu nome"
+              placeholderTextColor={colors.brandTextSecondary}
+              value={name}
+              onChangeText={(t) => { setName(t); if (errors.name) setErrors((p) => ({ ...p, name: undefined })); }}
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!loading}
+            />
+            {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
+          </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>E-mail</Text>
@@ -90,7 +107,7 @@ export default function LoginScreen() {
             <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
               <TextInput
                 style={styles.inputInner}
-                placeholder="Sua senha"
+                placeholder="Mínimo 8 caracteres"
                 placeholderTextColor={colors.brandTextSecondary}
                 value={password}
                 onChangeText={(t) => { setPassword(t); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
@@ -106,18 +123,23 @@ export default function LoginScreen() {
           </View>
 
           <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={submit} disabled={loading}>
-            {loading ? <LoadingDog size={28} color="#FFFFFF" /> : <Text style={styles.buttonText}>Entrar</Text>}
+            {loading ? <LoadingDog size={28} color="#FFFFFF" /> : <Text style={styles.buttonText}>Criar conta</Text>}
           </Pressable>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Não tenho conta </Text>
-            <Pressable onPress={() => navigation.navigate('Register')} disabled={loading} hitSlop={8}>
-              <Text style={styles.footerLink}>Criar conta</Text>
+            <Text style={styles.footerText}>Já tenho conta </Text>
+            <Pressable onPress={() => navigation.navigate('Login')} disabled={loading} hitSlop={8}>
+              <Text style={styles.footerLink}>Entrar</Text>
             </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {navigation.canGoBack() ? (
+        <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={8} accessibilityLabel="Voltar">
+          <Ionicons name="chevron-back" size={28} color={colors.brandTextSecondary} />
+        </Pressable>
+      ) : null}
       <Pressable style={styles.themeToggle} onPress={toggle} hitSlop={8} accessibilityLabel="Alternar tema">
         <Image
           source={isDark ? require('../../assets/icon-tema-claro.png') : require('../../assets/icon-tema-escuro.png')}
@@ -133,8 +155,9 @@ function makeStyles(c: any) {
     safe: { flex: 1, backgroundColor: c.brandBackground },
     flex: { flex: 1 },
     themeToggle: { position: 'absolute', top: 56, right: 24, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+    backBtn: { position: 'absolute', top: 56, left: 16, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 100 },
     container: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 32, justifyContent: 'center' },
-    header: { marginBottom: 36 },
+    header: { marginBottom: 32 },
     title: { fontSize: 32, fontWeight: '800', color: c.brandTextPrimary, marginBottom: 8 },
     subtitle: { fontSize: 16, color: c.brandTextSecondary },
     formError: { color: c.brandTextError, fontWeight: '700', marginBottom: 16 },

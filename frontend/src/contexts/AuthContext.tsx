@@ -1,11 +1,29 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useReducer } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { authService } from '@/services/auth.service';
 import { authEvents } from '@/lib/authEvents';
 import { tokenStorage } from '@/lib/tokenStorage';
+import {
+  getSavedAccounts,
+  removeSavedAccount as removeSavedAccountStorage,
+  updateSavedAccount as updateSavedAccountStorage,
+  upsertSavedAccount,
+  type SavedAccount,
+} from '@/lib/savedAccounts';
 import type { LoginRequest, RegisterRequest, User } from '@/types/api.types';
 
 type State = { user: User | null; booting: boolean; loading: boolean };
-type AuthContextValue = State & { login(data: LoginRequest): Promise<void>; register(data: RegisterRequest): Promise<void>; logout(): Promise<void>; bootstrap(): Promise<void> };
+type AuthContextValue = State & {
+  savedAccounts: SavedAccount[];
+  login(data: LoginRequest): Promise<void>;
+  register(data: RegisterRequest): Promise<void>;
+  loginWithSavedAccount(account: SavedAccount): Promise<void>;
+  removeSavedAccount(email: string): Promise<void>;
+  updateSavedAccount(email: string, patch: Partial<Pick<SavedAccount, 'name' | 'color'>>): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  deleteAccount(password: string): Promise<void>;
+  logout(): Promise<void>;
+  bootstrap(): Promise<void>;
+};
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function reducer(state: State, patch: Partial<State>) {
@@ -14,6 +32,11 @@ function reducer(state: State, patch: Partial<State>) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { user: null, booting: true, loading: false });
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+
+  const reloadSavedAccounts = useCallback(async () => {
+    setSavedAccounts(await getSavedAccounts());
+  }, []);
 
   const clearSession = useCallback(async () => {
     await tokenStorage.clearTokens();
@@ -37,37 +60,133 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authService.login(data);
       await tokenStorage.saveTokens(response.accessToken, response.refreshToken);
+      await tokenStorage.setActiveEmail(response.user.email);
+      await upsertSavedAccount({
+        email: response.user.email,
+        name: response.user.name ?? null,
+        refreshToken: response.refreshToken,
+      });
+      await reloadSavedAccounts();
       dispatch({ user: response.user, loading: false });
     } catch (error) {
       dispatch({ loading: false });
       throw error;
     }
-  }, []);
-
+  }, [reloadSavedAccounts]);
 
   const register = useCallback(async (data: RegisterRequest) => {
     dispatch({ loading: true });
     try {
       const response = await authService.register(data);
       await tokenStorage.saveTokens(response.accessToken, response.refreshToken);
+      await tokenStorage.setActiveEmail(response.user.email);
+      await upsertSavedAccount({
+        email: response.user.email,
+        name: response.user.name ?? null,
+        refreshToken: response.refreshToken,
+      });
+      await reloadSavedAccounts();
       dispatch({ user: response.user, loading: false });
     } catch (error) {
       dispatch({ loading: false });
       throw error;
     }
-  }, []);
+  }, [reloadSavedAccounts]);
 
+  /**
+   * Login rápido por conta salva: troca o refreshToken guardado por novos
+   * tokens. Como o backend rotaciona refresh tokens, re-salva o novo.
+   * Lança erro se o token expirou/foi revogado (o chamador cai pra senha).
+   */
+  const loginWithSavedAccount = useCallback(async (account: SavedAccount) => {
+    dispatch({ loading: true });
+    try {
+      const tokens = await authService.refresh(account.refreshToken);
+      await tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken);
+      const user = await authService.me();
+      await tokenStorage.setActiveEmail(user.email);
+      await upsertSavedAccount({
+        email: user.email,
+        name: user.name ?? account.name,
+        refreshToken: tokens.refreshToken,
+      });
+      await reloadSavedAccounts();
+      dispatch({ user, loading: false });
+    } catch (error) {
+      dispatch({ loading: false });
+      throw error;
+    }
+  }, [reloadSavedAccounts]);
+
+  const removeSavedAccount = useCallback(async (email: string) => {
+    await removeSavedAccountStorage(email);
+    await reloadSavedAccounts();
+  }, [reloadSavedAccounts]);
+
+  const updateSavedAccount = useCallback(async (email: string, patch: Partial<Pick<SavedAccount, 'name' | 'color'>>) => {
+    await updateSavedAccountStorage(email, patch);
+    await reloadSavedAccounts();
+  }, [reloadSavedAccounts]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    // Backend revoga as sessões antigas e emite tokens novos pra este device.
+    const tokens = await authService.changePassword(currentPassword, newPassword);
+    await tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken);
+    const email = await tokenStorage.getActiveEmail();
+    if (email) {
+      await updateSavedAccountStorage(email, { refreshToken: tokens.refreshToken });
+      await reloadSavedAccounts();
+    }
+  }, [reloadSavedAccounts]);
+
+  const deleteAccount = useCallback(async (password: string) => {
+    dispatch({ loading: true });
+    try {
+      const email = await tokenStorage.getActiveEmail();
+      await authService.deleteAccount(password);
+      if (email) await removeSavedAccountStorage(email);
+      await reloadSavedAccounts();
+      await clearSession();
+    } catch (error) {
+      dispatch({ loading: false });
+      throw error;
+    }
+  }, [clearSession, reloadSavedAccounts]);
+
+  /**
+   * "Sair" suave: limpa só os tokens locais e volta pro hub, SEM revogar a sessão
+   * no servidor — assim o login rápido por Face ID (refresh token salvo) continua
+   * funcionando. O sign-out de verdade é "Remover conta" (X no hub).
+   */
   const logout = useCallback(async () => {
     dispatch({ loading: true });
-    try { await authService.logout(); } finally { await clearSession(); }
+    await clearSession();
   }, [clearSession]);
 
   useEffect(() => {
     bootstrap();
+    reloadSavedAccounts();
     return authEvents.onForceLogout(clearSession);
-  }, [bootstrap, clearSession]);
+  }, [bootstrap, clearSession, reloadSavedAccounts]);
 
-  const value = useMemo(() => ({ ...state, login, register, logout, bootstrap }), [state, login, register, logout, bootstrap]);
+  // Registra o push token sempre que houver usuário logado.
+  useEffect(() => {
+    if (!state.user) return;
+    (async () => {
+      try {
+        const { registerForPushNotifications } = await import('@/lib/pushNotifications');
+        const token = await registerForPushNotifications();
+        if (token) await authService.savePushToken(token);
+      } catch {
+        // best-effort; sem push se falhar
+      }
+    })();
+  }, [state.user]);
+
+  const value = useMemo(
+    () => ({ ...state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap }),
+    [state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
