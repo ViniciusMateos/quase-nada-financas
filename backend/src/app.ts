@@ -15,7 +15,9 @@ import {
   subscriptionsRoutes,
   categoryStatsRoutes,
   installmentsRoutes,
+  weeklySummaryRoutes,
 } from "./features/analytics/analytics.routes.js";
+import { investmentsRoutes } from "./features/investments/investments.routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -49,6 +51,8 @@ export async function buildApp() {
       await api.register(subscriptionsRoutes, { prefix: "/subscriptions" });
       await api.register(categoryStatsRoutes, { prefix: "/categories" });
       await api.register(installmentsRoutes, { prefix: "/installments" });
+      await api.register(weeklySummaryRoutes, { prefix: "/analytics/weekly-summary" });
+      await api.register(investmentsRoutes, { prefix: "/investments" });
     },
     { prefix: "/api/v1" }
   );

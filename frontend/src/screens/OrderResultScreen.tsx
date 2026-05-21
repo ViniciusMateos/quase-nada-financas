@@ -3,24 +3,43 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { Button } from '@/ui/Button';
-import type { Order } from '@/types/api.types';
+
+// Shape vindo do backend (InvestmentOrder do Prisma).
+type BackendOrder = {
+  id: string;
+  asset: string;
+  amountBrl: number;
+  amountAsset: number | null;
+  status: 'FILLED' | 'PENDING' | 'FAILED' | string;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  FILLED: 'Executada',
+  PENDING: 'Pendente',
+  FAILED: 'Falhou',
+};
 
 export default function OrderResultScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { colors } = useTheme();
-  const order = route.params.order as Order;
-  const success = order.status === 'filled' || order.status === 'pending';
+  const order = route.params.order as BackendOrder;
+  const success = order.status === 'FILLED' || order.status === 'PENDING';
   return (
     <View style={[styles.container, { backgroundColor: colors.brandBackground }]}>
       <Text style={[styles.title, { color: success ? colors.brandTextPositive : colors.brandTextError }]}>
         {success ? 'Ordem enviada' : 'Ordem falhou'}
       </Text>
-      <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>{formatCurrency(order.amountBRL)}</Text>
+      <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>{formatCurrency(order.amountBrl)}</Text>
       <Text style={[styles.detail, { color: colors.brandTextSecondary }]}>
-        {order.symbol} • {order.side === 'buy' ? 'Compra' : 'Venda'}
+        Compra de {order.asset}
+        {order.amountAsset ? ` • ${order.amountAsset} ${order.asset}` : ''}
       </Text>
-      <Text style={[styles.detail, { color: colors.brandTextSecondary }]}>Status: {order.status}</Text>
+      <Text style={[styles.detail, { color: colors.brandTextSecondary }]}>
+        Status: {STATUS_LABEL[order.status] ?? order.status}
+      </Text>
       <Text style={[styles.detail, { color: colors.brandTextSecondary }]}>
         Criada em {formatDateTime(order.createdAt)}
       </Text>

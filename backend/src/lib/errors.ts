@@ -21,4 +21,6 @@ export const Errors = {
   ExternalService: (msg: string) => new AppError("EXTERNAL_SERVICE_ERROR", msg, 502),
   InvalidCredentials: () => new AppError("INVALID_CREDENTIALS", "Email ou senha inválidos", 401),
   InvalidBiometric: () => new AppError("INVALID_BIOMETRIC", "Biometria inválida ou expirada", 401),
+  InsufficientBalance: (msg = "Saldo insuficiente na Binance") =>
+    new AppError("INSUFFICIENT_BALANCE", msg, 422),
 };

@@ -17,7 +17,16 @@ export function useInvestments(symbol = 'BTC') {
     setLoading(true);
     setError(null);
     try { setWallet(await binanceService.wallet()); }
-    catch (err) { setError(normalizeError(err).message); }
+    catch (err: any) {
+      const normalized = normalizeError(err);
+      // 404 / NOT_FOUND = conta Binance não conectada. Trata como
+      // "wallet desconectada" pra tela mostrar CTA de conectar.
+      if (normalized.statusCode === 404 || normalized.code === 'NOT_FOUND') {
+        setWallet({ connected: false, totalBRL: 0, assets: [] });
+      } else {
+        setError(normalized.message);
+      }
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -32,9 +41,16 @@ export function useInvestments(symbol = 'BTC') {
 
   const startPolling = useCallback(() => {
     stopPolling();
+    // Só faz polling de cotação se a Binance estiver conectada.
+    if (!wallet?.connected) return;
     loadQuote();
     timer.current = setInterval(loadQuote, 5000);
-  }, [loadQuote, stopPolling]);
+  }, [loadQuote, stopPolling, wallet?.connected]);
+
+  const disconnect = useCallback(async () => {
+    await binanceService.disconnect();
+    setWallet({ connected: false, totalBRL: 0, assets: [] });
+  }, []);
 
   useEffect(() => { loadWallet(); }, [loadWallet, refreshKey]);
   useEffect(() => {
@@ -43,5 +59,5 @@ export function useInvestments(symbol = 'BTC') {
     return () => { sub.remove(); stopPolling(); };
   }, [startPolling, stopPolling]);
 
-  return { wallet, quote, loading, error, reload: loadWallet };
+  return { wallet, quote, loading, error, reload: loadWallet, disconnect };
 }

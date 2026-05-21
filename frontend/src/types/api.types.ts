@@ -1,6 +1,6 @@
-export type User = { id: string; name?: string; email: string; biometricsEnabled?: boolean };
+export type User = { id: string; name?: string | null; email: string; biometricsEnabled?: boolean };
 export type LoginRequest = { email: string; password: string };
-export type RegisterRequest = { email: string; password: string };
+export type RegisterRequest = { email: string; password: string; name?: string };
 export type LoginResponse = { accessToken: string; refreshToken: string; user: User };
 export type RegisterResponse = LoginResponse;
 export type BankAccount = {
@@ -76,4 +76,39 @@ export type Order = {
   status: 'pending' | 'filled' | 'failed';
   createdAt: string;
   errorMessage: string | null;
+};
+
+export type InvestmentRule = {
+  id: string;
+  name: string;
+  active: boolean;
+  triggerType: 'monthly' | 'weekly' | 'salary_received';
+  triggerDay: number | null;
+  triggerMinAmount: number | null;
+  actionType: 'buy_binance' | 'reminder';
+  asset: string;
+  amountBrl: number;
+  maxAmountBrl: number | null;
+  maxFiresPerMonth: number;
+  firesThisMonth: number;
+  firesMonthRef: string | null;
+  lastFiredAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InvestmentPendingAction = {
+  id: string;
+  ruleId: string | null;
+  actionType: 'buy_binance' | 'reminder';
+  asset: string;
+  amountBrl: number;
+  status: 'PENDING' | 'APPROVED' | 'EXECUTED' | 'DISMISSED' | 'EXPIRED' | 'FAILED';
+  dueAt: string;
+  approvedAt: string | null;
+  executedAt: string | null;
+  resultMessage: string | null;
+  executedOrderId: string | null;
+  createdAt: string;
 };

@@ -6,11 +6,14 @@ import { encrypt, decrypt } from "../../lib/crypto.js";
 import { redis } from "../../lib/redis.js";
 import { Errors } from "../../lib/errors.js";
 import { env } from "../../config/env.js";
+import { sendPushToUser } from "../../lib/push.js";
 
 interface QuotePayload {
   symbol: string;
-  priceBrl: number;
-  fetchedAt: string;
+  priceBRL: number;
+  priceBrl: number; // legacy
+  updatedAt: string;
+  fetchedAt: string; // legacy
 }
 
 export class BinanceService {
@@ -50,29 +53,77 @@ export class BinanceService {
     const apiKey = decrypt(account.apiKeyEnc);
     const apiSecret = decrypt(account.apiSecretEnc);
 
-    const balances = await this.client.getAccountBalances(apiKey, apiSecret);
+    // Pega balances do Spot + Funding em paralelo (Funding é onde fica
+    // BTC/USDT vindo de P2P/Pay). Erros no Funding não bloqueiam.
+    const [spot, funding] = await Promise.all([
+      this.client.getAccountBalances(apiKey, apiSecret),
+      this.client.getFundingBalances(apiKey, apiSecret).catch(() => []),
+    ]);
+
+    // Agrega: mesmo asset somando spot + funding
+    const map = new Map<string, { asset: string; free: number; locked: number }>();
+    for (const list of [spot, funding]) {
+      for (const b of list) {
+        const cur = map.get(b.asset) ?? { asset: b.asset, free: 0, locked: 0 };
+        cur.free += b.free;
+        cur.locked += b.locked;
+        map.set(b.asset, cur);
+      }
+    }
+    const balances = [...map.values()];
     const nonZero = balances.filter((b) => b.free + b.locked > 0);
 
     let totalBrl = 0;
     const detailed = await Promise.all(
       nonZero.map(async (b) => {
-        const quote = await this.fetchAssetQuoteBrl(b.asset);
         const totalAsset = b.free + b.locked;
-        const totalBrlOnAsset = totalAsset * quote.priceBrl;
-        totalBrl += totalBrlOnAsset;
-        return {
-          asset: b.asset,
-          free: b.free,
-          locked: b.locked,
-          priceBrl: quote.priceBrl,
-          totalBrl: round(totalBrlOnAsset),
-        };
+        // BRL é a moeda de referência — não tem par BRLBRL.
+        // Outras stablecoins atreladas ao BRL podem ser tratadas igual no futuro.
+        if (b.asset === "BRL") {
+          totalBrl += totalAsset;
+          return {
+            asset: b.asset,
+            free: b.free,
+            locked: b.locked,
+            priceBrl: 1,
+            totalBrl: round(totalAsset),
+          };
+        }
+        try {
+          const quote = await this.fetchAssetQuoteBrl(b.asset);
+          const totalBrlOnAsset = totalAsset * quote.priceBrl;
+          totalBrl += totalBrlOnAsset;
+          return {
+            asset: b.asset,
+            free: b.free,
+            locked: b.locked,
+            priceBrl: quote.priceBrl,
+            totalBrl: round(totalBrlOnAsset),
+          };
+        } catch {
+          // Ativo sem par BRL na Binance — retorna posição com priceBrl=0
+          // ao invés de quebrar a wallet inteira.
+          return {
+            asset: b.asset,
+            free: b.free,
+            locked: b.locked,
+            priceBrl: 0,
+            totalBrl: 0,
+          };
+        }
       })
     );
 
     return {
-      totalBrl: round(totalBrl),
-      assets: detailed,
+      connected: true,
+      totalBRL: round(totalBrl),
+      assets: detailed.map((d) => ({
+        symbol: d.asset,
+        name: d.asset,
+        quantity: round8(d.free + d.locked),
+        valueBRL: d.totalBrl,
+        change24h: 0,
+      })),
       fetchedAt: new Date().toISOString(),
     };
   }
@@ -88,7 +139,24 @@ export class BinanceService {
     biometricToken: string
   ) {
     await this.auth.consumeBiometricChallenge(biometricToken, userId);
+    return this.executeOrder(userId, asset, amountBrl, "MANUAL");
+  }
 
+  /**
+   * Execução automatizada disparada por InvestmentRule (após o usuário aprovar
+   * a PendingAction). Não exige biometria, mas marca triggerType="AUTO" pra
+   * rastreabilidade.
+   */
+  async placeOrderAutomated(userId: string, asset: string, amountBrl: number) {
+    return this.executeOrder(userId, asset, amountBrl, "AUTO");
+  }
+
+  private async executeOrder(
+    userId: string,
+    asset: string,
+    amountBrl: number,
+    triggerType: "MANUAL" | "AUTO"
+  ) {
     const account = await this.repo.findByUser(userId);
     if (!account) throw Errors.NotFound("Conta Binance não conectada");
 
@@ -98,7 +166,7 @@ export class BinanceService {
       asset,
       amountBrl,
       orderType: "MARKET",
-      triggerType: "MANUAL",
+      triggerType,
       status: "PENDING",
     });
 
@@ -117,6 +185,14 @@ export class BinanceService {
         executedAt: new Date(),
         responseData: response as unknown as Prisma.InputJsonValue,
       });
+
+      void sendPushToUser(
+        userId,
+        "Ordem executada ✅",
+        `Compra de ${formatBrl(amountBrl)} em ${asset.toUpperCase()} liquidada (${filledQty} ${asset.toUpperCase()}).`,
+        { type: "order_filled", orderId: updated.id }
+      );
+
       return updated;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro desconhecido";
@@ -124,6 +200,13 @@ export class BinanceService {
         status: "FAILED",
         errorMessage: message,
       });
+      // Binance code -2010 / "insufficient balance" → erro específico pro app
+      // oferecer carregar saldo.
+      if (/insufficient balance|-2010/i.test(message)) {
+        throw Errors.InsufficientBalance(
+          "Saldo insuficiente na Binance. Carregue sua conta e tente de novo."
+        );
+      }
       throw Errors.ExternalService(`Binance recusou a ordem: ${message}`);
     }
   }
@@ -148,10 +231,13 @@ export class BinanceService {
     if (cached) return JSON.parse(cached) as QuotePayload;
 
     const price = await this.client.getSymbolPrice(`${symbol}BRL`);
+    const now = new Date().toISOString();
     const payload: QuotePayload = {
       symbol,
-      priceBrl: price,
-      fetchedAt: new Date().toISOString(),
+      priceBRL: price,
+      priceBrl: price, // legacy
+      updatedAt: now,
+      fetchedAt: now, // legacy
     };
     await redis.set(cacheKey, JSON.stringify(payload), "EX", env.BINANCE_QUOTE_TTL_SECONDS);
     return payload;
@@ -160,4 +246,13 @@ export class BinanceService {
 
 function round(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function formatBrl(n: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
+}
+
+/** Arredondamento pra 8 casas (precisão de satoshi). Usado pra quantidade de cripto. */
+function round8(n: number): number {
+  return Math.round(n * 1e8) / 1e8;
 }

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { authService } from '@/services/auth.service';
 import { binanceService } from '@/services/binance.service';
 import { biometricAuth } from '@/lib/biometricAuth';
 import { normalizeError } from '@/lib/errorMap';
+import { openBinanceDeposit } from '@/lib/binanceDeposit';
 import { formatCurrency } from '@/lib/formatters';
 import { BottomSheet } from '@/ui/BottomSheet';
 import { Button } from '@/ui/Button';
@@ -26,17 +27,28 @@ export default function NewOrderSheet() {
       return Alert.alert('Valor inválido', 'Digite um valor válido para a ordem.');
     setLoading(true);
     try {
-      const challenge = await authService.biometricChallenge();
       await biometricAuth.authenticate();
+      const challenge = await authService.biometricChallenge();
       const order = await binanceService.placeOrder({
-        symbol,
-        side: 'buy',
-        amountBRL: numericAmount,
-        challengeToken: challenge.challengeToken,
+        asset: symbol,
+        amountBrl: numericAmount,
+        biometricToken: challenge.biometricToken,
       });
       navigation.replace('OrderResult', { order });
     } catch (err) {
-      Alert.alert('Não foi possível criar a ordem', normalizeError(err).message);
+      const normalized = normalizeError(err);
+      if (normalized.code === 'INSUFFICIENT_BALANCE') {
+        Alert.alert(
+          'Saldo insuficiente',
+          `Você não tem saldo na Binance pra comprar ${formatCurrency(numericAmount)} em ${symbol}. Carregue sua conta via Pix e tente de novo.`,
+          [
+            { text: 'Agora não', style: 'cancel' },
+            { text: 'Carregar Binance', onPress: () => openBinanceDeposit() },
+          ]
+        );
+      } else {
+        Alert.alert('Não foi possível criar a ordem', normalized.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -44,35 +56,46 @@ export default function NewOrderSheet() {
 
   return (
     <BottomSheet onClose={() => navigation.goBack()}>
-      <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Nova ordem</Text>
-      <View style={styles.symbols}>
-        {symbols.map((item) => {
-          const active = item === symbol;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => setSymbol(item)}
-              style={[
-                styles.chip,
-                {
-                  borderColor: active ? colors.brandPrimary : colors.brandDivider,
-                  backgroundColor: active ? colors.brandPrimaryTint : 'transparent',
-                },
-              ]}
-            >
-              <Text style={{ color: active ? colors.brandPrimaryDark : colors.brandTextSecondary, fontWeight: '700' }}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <TextField label="Valor em BRL" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
-      <Text style={[styles.estimate, { color: colors.brandTextSecondary }]}>
-        Estimativa: {numericAmount ? formatCurrency(numericAmount) : 'R$ 0,00'} em {symbol}
-      </Text>
-      <Button label="Confirmar com Face ID" icon="finger-print" loading={loading} onPress={submit} />
-      <Button label="Cancelar" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: 8 }} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Nova ordem</Text>
+          <View style={styles.symbols}>
+            {symbols.map((item) => {
+              const active = item === symbol;
+              return (
+                <Pressable
+                  key={item}
+                  onPress={() => setSymbol(item)}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: active ? colors.brandPrimary : colors.brandDivider,
+                      backgroundColor: active ? colors.brandPrimaryTint : 'transparent',
+                    },
+                  ]}
+                >
+                  <Text style={{ color: active ? colors.brandPrimaryDark : colors.brandTextSecondary, fontWeight: '700' }}>
+                    {item}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextField label="Valor em BRL" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" />
+          <Text style={[styles.estimate, { color: colors.brandTextSecondary }]}>
+            Estimativa: {numericAmount ? formatCurrency(numericAmount) : 'R$ 0,00'} em {symbol}
+          </Text>
+          <Button label="Confirmar com Face ID" icon="finger-print" loading={loading} onPress={submit} />
+          <Button label="Cancelar" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: 8 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </BottomSheet>
   );
 }

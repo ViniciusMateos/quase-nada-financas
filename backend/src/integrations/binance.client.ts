@@ -60,6 +60,40 @@ export class BinanceClient {
   }
 
   /**
+   * Posições em Funding Wallet (P2P, Pay, Earn unstaked). É a segunda carteira
+   * principal que conta junto com a Spot pra "Total de BTC" mostrado no app.
+   * Endpoint /sapi/v1/asset/get-funding-asset (POST).
+   */
+  async getFundingBalances(apiKey: string, apiSecret: string): Promise<BinanceBalance[]> {
+    const params = new URLSearchParams();
+    params.set("timestamp", Date.now().toString());
+    params.set("recvWindow", String(RECV_WINDOW));
+    const signed = this.sign(params, apiSecret);
+
+    const res = await request(`${env.BINANCE_API_URL}/sapi/v1/asset/get-funding-asset?${signed}`, {
+      method: "POST",
+      headers: { "X-MBX-APIKEY": apiKey },
+    });
+    if (res.statusCode >= 400) {
+      // Sem permissão ou conta sem Funding — ignora silenciosamente.
+      return [];
+    }
+    const json = (await res.body.json()) as Array<{
+      asset: string;
+      free: string;
+      locked: string;
+      freeze?: string;
+      withdrawing?: string;
+    }>;
+    if (!Array.isArray(json)) return [];
+    return json.map((r) => ({
+      asset: r.asset,
+      free: Number(r.free),
+      locked: Number(r.locked) + Number(r.freeze ?? 0) + Number(r.withdrawing ?? 0),
+    }));
+  }
+
+  /**
    * Ordem MARKET BUY usando quoteOrderQty (valor em moeda de cotação — BRL).
    */
   async placeMarketBuy(

@@ -1,4 +1,4 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -159,24 +159,68 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
   );
 }
 
-export function AssetRow({ asset }: { asset: BinanceAsset }) {
+// Logos oficiais via repo público de ícones de cripto
+const CRYPTO_ICON_BASE = 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color';
+
+const CRYPTO_META: Record<string, { name: string; bg: string; fg: string }> = {
+  BTC: { name: 'Bitcoin', bg: '#F7931A', fg: '#FFFFFF' },
+  ETH: { name: 'Ethereum', bg: '#627EEA', fg: '#FFFFFF' },
+  USDT: { name: 'Tether', bg: '#26A17B', fg: '#FFFFFF' },
+  USDC: { name: 'USD Coin', bg: '#2775CA', fg: '#FFFFFF' },
+  BNB: { name: 'BNB', bg: '#F3BA2F', fg: '#000000' },
+  SOL: { name: 'Solana', bg: '#000000', fg: '#FFFFFF' },
+  ADA: { name: 'Cardano', bg: '#0033AD', fg: '#FFFFFF' },
+  XRP: { name: 'XRP', bg: '#23292F', fg: '#FFFFFF' },
+  DOGE: { name: 'Dogecoin', bg: '#C2A633', fg: '#FFFFFF' },
+  DOT: { name: 'Polkadot', bg: '#E6007A', fg: '#FFFFFF' },
+  MATIC: { name: 'Polygon', bg: '#8247E5', fg: '#FFFFFF' },
+  BRL: { name: 'Real Brasileiro', bg: '#22C55E', fg: '#FFFFFF' },
+};
+
+function cryptoIconUrl(symbol: string, size: number): string {
+  if (symbol === 'BRL') return '';
+  const url = `${CRYPTO_ICON_BASE}/${symbol.toLowerCase()}.svg`;
+  const noProtocol = url.replace(/^https?:\/\//i, '');
+  const px = Math.max(64, Math.round(size * 3));
+  return `https://images.weserv.nl/?url=${encodeURIComponent(noProtocol)}&output=png&w=${px}&h=${px}&fit=contain`;
+}
+
+function formatCryptoQuantity(qty: number, symbol: string): string {
+  if (symbol === 'BRL') return qty.toFixed(2);
+  if (qty >= 1) return qty.toFixed(4);
+  if (qty >= 0.01) return qty.toFixed(6);
+  return qty.toFixed(8);
+}
+
+export function AssetRow({ asset, formatValue }: { asset: BinanceAsset; formatValue?: (brl: number) => string }) {
   const { colors } = useTheme();
   const positive = asset.change24h >= 0;
+  const meta = CRYPTO_META[asset.symbol] ?? { name: asset.name || asset.symbol, bg: colors.brandPrimaryTint, fg: colors.brandPrimaryDark };
+  const iconUrl = cryptoIconUrl(asset.symbol, 44);
+  const formattedValue = formatValue ? formatValue(asset.valueBRL) : formatCurrency(asset.valueBRL);
   return (
     <View style={[styles.row, { backgroundColor: colors.brandSurface }]}>
-      <View style={[styles.icon, { backgroundColor: colors.brandPrimaryTint }]}>
-        <Text style={[styles.assetSymbol, { color: colors.brandPrimaryDark }]}>{asset.symbol.slice(0, 3)}</Text>
+      <View style={[styles.icon, { backgroundColor: meta.bg, overflow: 'hidden' }]}>
+        {iconUrl ? (
+          <Image source={{ uri: iconUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+        ) : asset.symbol === 'BRL' ? (
+          <Text style={{ color: meta.fg, fontSize: 18, fontWeight: '900' }}>R$</Text>
+        ) : (
+          <Text style={[styles.assetSymbol, { color: meta.fg }]}>{asset.symbol.slice(0, 3)}</Text>
+        )}
       </View>
       <View style={styles.middle}>
         <Text style={[styles.title, { color: colors.brandTextPrimary }]}>{asset.symbol}</Text>
-        <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>{asset.name}</Text>
+        <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>{meta.name}</Text>
       </View>
       <View style={styles.right}>
-        <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>{asset.quantity}</Text>
-        <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>{formatCurrency(asset.valueBRL)}</Text>
-        <Text style={{ color: positive ? colors.brandTextPositive : colors.brandTextNegative, fontWeight: '700' }}>
-          {positive ? '+' : ''}{asset.change24h.toFixed(2)}%
-        </Text>
+        <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>{formatCryptoQuantity(asset.quantity, asset.symbol)}</Text>
+        <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>{formattedValue}</Text>
+        {asset.change24h !== 0 ? (
+          <Text style={{ color: positive ? colors.brandTextPositive : colors.brandTextNegative, fontWeight: '700' }}>
+            {positive ? '+' : ''}{asset.change24h.toFixed(2)}%
+          </Text>
+        ) : null}
       </View>
     </View>
   );

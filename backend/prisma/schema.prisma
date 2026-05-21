@@ -10,13 +10,17 @@ datasource db {
 model User {
   id                String             @id @default(uuid())
   email             String             @unique
+  name             String?
   passwordHash     String
+  pushToken        String?
   createdAt        DateTime           @default(now())
   sessions         Session[]
   connectedAccounts ConnectedAccount[]
   categories       Category[]
   binanceAccount   BinanceAccount?
   investmentOrders InvestmentOrder[]
+  investmentRules  InvestmentRule[]
+  investmentPendingActions InvestmentPendingAction[]
   categoryRules    CategoryRule[]
 }
 
@@ -166,4 +170,65 @@ model InvestmentOrder {
   createdAt        DateTime       @default(now())
 
   @@index([userId, createdAt])
+}
+
+model InvestmentRule {
+  id                String   @id @default(uuid())
+  userId            String
+  name              String
+  active            Boolean  @default(true)
+
+  // Trigger
+  triggerType       String                          // 'monthly' | 'weekly' | 'salary_received'
+  triggerDay        Int?                            // monthly: 1-31; weekly: 0-6 (dom-sab)
+  triggerMinAmount  Float?                          // salary_received: valor mínimo da tx pra contar
+
+  // Action
+  actionType        String                          // 'buy_binance' | 'reminder'
+  asset             String
+  amountBrl         Float
+
+  // Limites de segurança
+  maxAmountBrl      Float?                          // hard cap por execução
+  maxFiresPerMonth  Int      @default(2)
+
+  // Estado
+  firesThisMonth    Int      @default(0)
+  firesMonthRef     DateTime?                       // 1º dia do mês atual de referência
+  lastFiredAt       DateTime?
+  lastError         String?
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pendingActions    InvestmentPendingAction[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, active])
+  @@index([triggerType, active])
+}
+
+model InvestmentPendingAction {
+  id              String   @id @default(uuid())
+  userId          String
+  ruleId          String?
+
+  actionType      String                            // 'buy_binance' | 'reminder'
+  asset           String
+  amountBrl       Float
+  status          String   @default("PENDING")      // PENDING | APPROVED | EXECUTED | DISMISSED | EXPIRED | FAILED
+
+  dueAt           DateTime
+  approvedAt      DateTime?
+  executedAt      DateTime?
+  resultMessage   String?
+  executedOrderId String?                           // FK opcional pra InvestmentOrder
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule            InvestmentRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([status, dueAt])
 }
