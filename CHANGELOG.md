@@ -3,6 +3,38 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.5.0] - 2026-05-21
+
+### Added
+
+- Aba Ativos: carteira de investimentos das corretoras (Rico/XP via
+  MeuPluggy) + Binance, agrupada por instituicao e classe (FII, acoes,
+  renda fixa, ETF, Tesouro...), com filtro por classe e alocacao.
+- Valorizacao do dia e do mes via snapshot diario da carteira
+  (`PortfolioSnapshot`), ja que o Pluggy nao retorna lucro das posicoes.
+- Transacoes (aportes/resgates) por ativo, abertas num sheet ao tocar.
+- Endpoint `GET /portfolio` (agrupado + variacao) e
+  `GET /portfolio/investments/:id/transactions`.
+- Corretora (conta com investimentos) marcada como `isInvestment` e
+  excluida do saldo, das transacoes e do filtro de contas.
+- Deteccao automatica de aporte real na corretora: o worker bate o
+  movimento BUY com a pendencia de lembrete e a marca como feita.
+- Card da Binance e linha "Investido" na aba Contas; widget de
+  investimentos no Inicio.
+
+### Changed
+
+- Loading padronizado: cachorro animado no topo (empurra o conteudo,
+  estilo indicador nativo) e esqueleto quando nao ha dado ainda, no
+  lugar do loader centralizado. Em Transacoes o esqueleto fica so na lista.
+- Classificacao de ativos por nome/subtype (FII/FIAGRO por ticker `11`,
+  Tesouro, ETF).
+
+### Fixed
+
+- Logo da XP cortada na aba Contas (passa a usar padding/contain).
+- Tocar numa conta filtra as transacoes sempre (antes so na 1a vez).
+
 ## [0.4.0] - 2026-05-20
 
 ### Added
