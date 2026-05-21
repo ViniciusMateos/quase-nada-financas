@@ -40,13 +40,13 @@ export class DashboardService {
     const end = new Date(Date.UTC(year, mon, 1));
 
     const totalBalanceRow = await prisma.bankAccount.aggregate({
-      where: { connectedAccount: { userId } },
+      where: { connectedAccount: { userId, isInvestment: false } },
       _sum: { balance: true },
     });
 
     const monthTxs = await prisma.transaction.findMany({
       where: {
-        bankAccount: { connectedAccount: { userId } },
+        bankAccount: { connectedAccount: { userId, isInvestment: false } },
         occurredAt: { gte: start, lt: end },
         categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
       },
@@ -99,7 +99,7 @@ export class DashboardService {
       .map(([name, total]) => ({ name, total }));
 
     const recentTxRows = await prisma.transaction.findMany({
-      where: { bankAccount: { connectedAccount: { userId } } },
+      where: { bankAccount: { connectedAccount: { userId, isInvestment: false } } },
       orderBy: { occurredAt: "desc" },
       take: 5,
       select: {

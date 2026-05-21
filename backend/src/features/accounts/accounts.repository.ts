@@ -97,6 +97,10 @@ export class AccountsRepository {
     });
   }
 
+  async setInvestmentFlag(id: string, isInvestment: boolean): Promise<void> {
+    await prisma.connectedAccount.update({ where: { id }, data: { isInvestment } });
+  }
+
   findBankAccountById(id: string): Promise<BankAccount | null> {
     return prisma.bankAccount.findUnique({ where: { id } });
   }

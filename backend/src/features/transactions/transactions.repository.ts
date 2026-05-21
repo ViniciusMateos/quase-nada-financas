@@ -18,8 +18,8 @@ export class TransactionsRepository {
   async findTransactionsPage(q: PageQuery) {
     const where: Prisma.TransactionWhereInput = {
       bankAccount: q.accountType
-        ? { type: q.accountType, connectedAccount: { userId: q.userId } }
-        : { connectedAccount: { userId: q.userId } },
+        ? { type: q.accountType, connectedAccount: { userId: q.userId, isInvestment: false } }
+        : { connectedAccount: { userId: q.userId, isInvestment: false } },
     };
     if (q.accountId) where.bankAccountId = q.accountId;
     else if (q.accountIds && q.accountIds.length > 0) where.bankAccountId = { in: q.accountIds };
@@ -155,8 +155,8 @@ export class TransactionsRepository {
   }): Promise<{ income: number; expense: number; count: number }> {
     const where: Prisma.TransactionWhereInput = {
       bankAccount: q.accountType
-        ? { type: q.accountType, connectedAccount: { userId: q.userId } }
-        : { connectedAccount: { userId: q.userId } },
+        ? { type: q.accountType, connectedAccount: { userId: q.userId, isInvestment: false } }
+        : { connectedAccount: { userId: q.userId, isInvestment: false } },
       // Sempre exclui pagamento de fatura (transferência interna)
       categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
     };

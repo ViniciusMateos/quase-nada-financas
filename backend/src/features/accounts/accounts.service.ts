@@ -64,6 +64,9 @@ export class AccountsService {
       if (detected) await this.repo.setCustomName(connected.id, detected);
     }
 
+    const investments = await this.pluggy.listInvestments(itemId);
+    await this.repo.setInvestmentFlag(connected.id, investments.length > 0);
+
     await this.invalidateDashboardCache(userId);
     return { connectedAccountId: connected.id, bankName: connected.bankName };
   }
@@ -242,6 +245,10 @@ export class AccountsService {
       const detected = detectInstitutionName(remoteAccounts);
       if (detected) await this.repo.setCustomName(conn.id, detected);
     }
+
+    // Marca como corretora se tiver investimentos (exclui do saldo/transações).
+    const investments = await this.pluggy.listInvestments(conn.pluggyItemId);
+    await this.repo.setInvestmentFlag(conn.id, investments.length > 0);
 
     await this.repo.touchConnectedAccount(conn.id);
     await this.invalidateDashboardCache(userId);
