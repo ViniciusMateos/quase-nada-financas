@@ -70,6 +70,8 @@ module.exports = {
       infoPlist: {
         NSFaceIDUsageDescription: 'Use o Face ID para confirmar ordens financeiras.',
         ITSAppUsesNonExemptEncryption: false,
+        // Permite checar/abrir o app da Binance via deep link
+        LSApplicationQueriesSchemes: ['bnc', 'binance'],
         ...(isDevelopment
           ? {
               NSAppTransportSecurity: {
@@ -90,6 +92,7 @@ module.exports = {
     },
     plugins: [
       'expo-secure-store',
+      'expo-notifications',
       [
         'expo-local-authentication',
         {

@@ -17,7 +17,7 @@
       "environment": "preview",
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_API_URL": "https://api.quasenada.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://quasenadaserver2.duckdns.org/api/v1"
       }
     }
   }
