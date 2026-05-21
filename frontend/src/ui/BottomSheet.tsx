@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Dimensions, Keyboard, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -35,6 +35,7 @@ export function BottomSheet({ visible = true, onClose, children, maxHeightFracti
   const sheetMaxHeight = windowHeight * maxHeightFraction;
 
   const translateY = useSharedValue(sheetMaxHeight);
+  const keyboardOffset = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
@@ -43,6 +44,21 @@ export function BottomSheet({ visible = true, onClose, children, maxHeightFracti
       translateY.value = withTiming(sheetMaxHeight, { duration: 200 });
     }
   }, [visible, sheetMaxHeight, translateY]);
+
+  // Empurra o sheet pra cima quando o teclado abre (necessário porque o sheet
+  // tem position:absolute, bottom:0 — KeyboardAvoidingView interno não basta).
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardWillShow', (e) => {
+      keyboardOffset.value = withTiming(-e.endCoordinates.height, { duration: 250 });
+    });
+    const hideSub = Keyboard.addListener('keyboardWillHide', () => {
+      keyboardOffset.value = withTiming(0, { duration: 200 });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardOffset]);
 
   const close = () => {
     translateY.value = withTiming(sheetMaxHeight, { duration: 220 }, (finished) => {
@@ -68,7 +84,7 @@ export function BottomSheet({ visible = true, onClose, children, maxHeightFracti
     });
 
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value + keyboardOffset.value }],
   }));
 
   const backdropStyle = useAnimatedStyle(() => {
