@@ -1,11 +1,14 @@
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, RefreshControl } from 'react-native';
 import { LoadingDog } from '@/ui/LoadingDog';
 import { useTheme } from '@/contexts/ThemeContext';
 
+const HEADER_HEIGHT = 56;
+
 /**
  * RefreshControl com o spinner nativo escondido (tint transparente). O feedback
- * visual do cachorro vem do <DogRefreshOverlay/>, já que o RefreshControl nativo
- * não permite trocar o ícone por uma imagem custom.
+ * é o <DogRefreshHeader/> — um cachorro no topo do conteúdo que empurra o resto
+ * pra baixo, igual ao indicador nativo, mas com o mascote.
  */
 export function dogRefreshControl(refreshing: boolean, onRefresh: () => void) {
   return (
@@ -19,24 +22,55 @@ export function dogRefreshControl(refreshing: boolean, onRefresh: () => void) {
   );
 }
 
-/** Cachorro girando fixado no topo, exibido enquanto refreshing está ativo. */
-export function DogRefreshOverlay({ refreshing }: { refreshing: boolean }) {
+/**
+ * Cachorro no topo da lista durante o refresh. Anima a altura (0 → HEADER_HEIGHT)
+ * pra os componentes descerem suave quando ele entra e subirem suave quando sai —
+ * em vez de pular. Renderize como PRIMEIRO filho do conteúdo do ScrollView/SectionList.
+ */
+export function DogRefreshHeader({ refreshing }: { refreshing: boolean }) {
   const { colors } = useTheme();
-  if (!refreshing) return null;
+  const progress = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (refreshing) {
+      setMounted(true);
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 240,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(progress, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
+    }
+  }, [refreshing, progress]);
+
+  if (!mounted) return null;
+
   return (
-    <View pointerEvents="none" style={styles.overlay}>
-      <LoadingDog size={38} color={colors.brandPrimaryDark} />
-    </View>
+    <Animated.View
+      style={{
+        height: progress.interpolate({ inputRange: [0, 1], outputRange: [0, HEADER_HEIGHT] }),
+        opacity: progress,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <LoadingDog size={30} color={colors.brandPrimaryDark} />
+    </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 8,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 50,
-  },
-});
+/** Descontinuado — virou no-op. Use <DogRefreshHeader/> dentro do scroll. */
+export function DogRefreshOverlay(_props: { refreshing: boolean }) {
+  return null;
+}

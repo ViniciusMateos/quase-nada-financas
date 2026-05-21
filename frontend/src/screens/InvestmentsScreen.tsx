@@ -4,13 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useInvestments } from '@/hooks/useInvestments';
 import { useInvestmentRules } from '@/hooks/useInvestmentRules';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { openBinanceDeposit } from '@/lib/binanceDeposit';
 import { formatCurrency } from '@/lib/formatters';
 import { AssetRow } from '@/ui/Cards';
 import { Button } from '@/ui/Button';
-import { ErrorState, LoadingState } from '@/ui/States';
+import { ErrorState, ListSkeleton } from '@/ui/States';
 import { TabScreen, TabScreenScroll } from '@/ui/TabScreen';
 
 type Currency = 'BRL' | 'USD';
@@ -25,6 +26,7 @@ export default function InvestmentsScreen() {
   const { wallet, quote, loading, error, reload, disconnect } = useInvestments('BTC');
   const { quote: usdtQuote } = useInvestments('USDT');
   const { rules, pending, reload: reloadRules } = useInvestmentRules();
+  const { data: portfolio } = usePortfolio();
   const [currency, setCurrency] = useState<Currency>('BRL');
 
   const handleDisconnect = () => {
@@ -52,13 +54,6 @@ export default function InvestmentsScreen() {
   const pendingCount = pending.filter((p) => p.status === 'PENDING').length;
   const activeRulesCount = rules.filter((r) => r.active).length;
 
-  if (loading) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
   if (error) {
     return (
       <TabScreen>
@@ -70,9 +65,13 @@ export default function InvestmentsScreen() {
   const binanceConnected = !!wallet?.connected;
 
   return (
-    <TabScreenScroll refreshing={false} onRefresh={async () => { await Promise.all([reload(), reloadRules()]); }}>
+    <TabScreenScroll refreshing={false} loading={loading && !wallet} onRefresh={async () => { await Promise.all([reload(), reloadRules()]); }}>
       <Text style={[styles.screenTitle, { color: colors.brandTextPrimary }]}>Investir</Text>
 
+      {loading && !wallet ? (
+        <ListSkeleton />
+      ) : (
+        <>
       {/* Tarefas pendentes (destaque se tiver) */}
       {pendingCount > 0 ? (
         <Pressable
@@ -186,6 +185,29 @@ export default function InvestmentsScreen() {
         <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
       </Pressable>
 
+      {/* Corretoras (Rico/XP via MeuPluggy) — leva pra aba Ativos */}
+      {portfolio && portfolio.groups.length > 0 ? (
+        <Pressable
+          onPress={() => navigation.navigate('Ativos')}
+          style={({ pressed }) => [
+            styles.summaryRow,
+            { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Ionicons name="pie-chart" size={20} color={colors.brandPrimaryDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.summaryTitle, { color: colors.brandTextPrimary }]}>
+              Corretoras: {formatCurrency(portfolio.totals.current)}
+            </Text>
+            <Text style={[styles.summarySub, { color: colors.brandTextSecondary }]}>
+              Renda fixa, fundos, ações... toque pra ver em Ativos
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
+        </Pressable>
+      ) : null}
+
       {/* Ativos da Binance */}
       {binanceConnected && wallet!.assets.length > 0 ? (
         <>
@@ -195,6 +217,8 @@ export default function InvestmentsScreen() {
           </View>
         </>
       ) : null}
+        </>
+      )}
     </TabScreenScroll>
   );
 }

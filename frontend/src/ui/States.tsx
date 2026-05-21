@@ -43,6 +43,17 @@ export function Skeleton({ height = 68 }: { height?: number }) {
   return <View style={[{ height, borderRadius: radius.md, backgroundColor: colors.brandSkeleton, marginBottom: 12 }]} />;
 }
 
+/** Lista de placeholders cinza — usada enquanto carrega (sem dado ainda). */
+export function ListSkeleton({ rows = 6, height = 68 }: { rows?: number; height?: number }) {
+  return (
+    <View style={{ paddingTop: 4 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} height={height} />
+      ))}
+    </View>
+  );
+}
+
 /** Estado de carregamento padrão do app: cachorro girando centralizado. */
 export function LoadingState() {
   const { colors } = useTheme();

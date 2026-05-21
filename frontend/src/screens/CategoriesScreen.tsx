@@ -13,8 +13,8 @@ import { CategoryIcon } from '@/ui/CategoryIcon';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, CategoryStatsResponse } from '@/services/analytics.service';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { PeriodPickerSheet } from '@/ui/PeriodPickerSheet';
 import { TabScreen } from '@/ui/TabScreen';
 
@@ -134,14 +134,6 @@ export default function CategoriesScreen() {
 
   useFocusRefresh(() => load('refresh'));
 
-  if (loading && !data) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
-
   if (error) {
     return (
       <TabScreen>
@@ -255,7 +247,10 @@ export default function CategoriesScreen() {
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={dogRefreshControl(refreshing, () => load('refresh'))}
         >
-          {items.length === 0 ? (
+          <DogRefreshHeader refreshing={loading || refreshing} />
+          {loading && !data ? (
+            <ListSkeleton />
+          ) : items.length === 0 ? (
             <EmptyState
               title="Nenhuma despesa neste período"
               subtitle="Tente outro mês ou sincronize as contas."
@@ -321,7 +316,6 @@ export default function CategoriesScreen() {
           )}
         </ScrollView>
       )}
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </TabScreen>
   );

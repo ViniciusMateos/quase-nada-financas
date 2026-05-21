@@ -7,7 +7,7 @@ import { transactionsService } from '@/services/transactions.service';
 import { TRANSACTION_UPDATED_EVENT, TransactionUpdatedPayload } from '@/screens/EditTransactionSheet';
 import { CategoryIcon } from '@/ui/CategoryIcon';
 import { LoadingDog } from '@/ui/LoadingDog';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { dogRefreshControl, DogRefreshHeader, DogRefreshOverlay } from '@/ui/DogRefresh';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { Transaction } from '@/types/api.types';
@@ -96,6 +96,7 @@ export default function TransactionDetailScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
         refreshControl={dogRefreshControl(refreshing, onRefresh)}
       >
+        <DogRefreshHeader refreshing={refreshing} />
         <View style={[styles.heroCard, { backgroundColor: colors.brandSurface, borderRadius: radius.xl, ...shadows.card }]}>
           <CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor || colors.brandPrimary} size={28} />
           <View style={{ height: 12 }} />

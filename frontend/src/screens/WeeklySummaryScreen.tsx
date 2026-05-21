@@ -7,8 +7,8 @@ import { analyticsService, WeeklySummary } from '@/services/analytics.service';
 import { formatCurrency } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { CategoryIcon } from '@/ui/CategoryIcon';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 
@@ -34,19 +34,20 @@ export default function WeeklySummaryScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) {
-    return (
-      <Screen style={styles.padded}>
-        <ScreenHeader title="Resumo da semana" />
-        <LoadingState />
-      </Screen>
-    );
-  }
-  if (error || !data) {
+  if (error) {
     return (
       <Screen style={styles.padded}>
         <ScreenHeader title="Resumo da semana" />
         <ErrorState subtitle={error || undefined} onRetry={() => load()} />
+      </Screen>
+    );
+  }
+  if (!data) {
+    return (
+      <Screen style={styles.padded}>
+        <ScreenHeader title="Resumo da semana" />
+        <DogRefreshHeader refreshing />
+        <ListSkeleton />
       </Screen>
     );
   }
@@ -63,6 +64,7 @@ export default function WeeklySummaryScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={dogRefreshControl(refreshing, () => load('refresh'))}
       >
+        <DogRefreshHeader refreshing={loading || refreshing} />
         <View style={[styles.hero, { backgroundColor: colors.brandPrimaryDark, borderRadius: radius.xl, ...shadows.glow }]}>
           <Text style={styles.heroPeriod}>{period}</Text>
           <Text style={styles.heroLabel}>Saldo da semana</Text>
@@ -101,7 +103,6 @@ export default function WeeklySummaryScreen() {
           </View>
         )}
       </ScrollView>
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </Screen>
   );

@@ -5,8 +5,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useInvestmentRules } from '@/hooks/useInvestmentRules';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/ui/Button';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { InvestmentRule } from '@/types/api.types';
@@ -30,15 +30,6 @@ export default function InvestmentRulesScreen() {
   const navigation = useNavigation<any>();
   const { colors, radius, shadows } = useTheme();
   const { rules, loading, refreshing, error, busyId, reload, toggleActive, remove } = useInvestmentRules();
-
-  if (loading) {
-    return (
-      <Screen style={styles.padded}>
-        <ScreenHeader title="Regras de investimento" />
-        <LoadingState />
-      </Screen>
-    );
-  }
 
   if (error) {
     return (
@@ -69,7 +60,10 @@ export default function InvestmentRulesScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={dogRefreshControl(refreshing, reload)}
       >
-        {rules.length === 0 ? (
+        <DogRefreshHeader refreshing={loading || refreshing} />
+        {loading && rules.length === 0 ? (
+          <ListSkeleton />
+        ) : rules.length === 0 ? (
           <EmptyState
             title="Sem regras criadas"
             subtitle="Crie sua primeira regra de investimento automatizado."
@@ -137,7 +131,6 @@ export default function InvestmentRulesScreen() {
           />
         ) : null}
       </ScrollView>
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </Screen>
   );

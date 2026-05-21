@@ -5,8 +5,8 @@ import { useInvestmentRules } from '@/hooks/useInvestmentRules';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { Button } from '@/ui/Button';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { Screen } from '@/ui/Screen';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import type { InvestmentPendingAction } from '@/types/api.types';
@@ -14,15 +14,6 @@ import type { InvestmentPendingAction } from '@/types/api.types';
 export default function PendingActionsScreen() {
   const { colors, radius, shadows } = useTheme();
   const { pending, loading, refreshing, error, busyId, reload, approve, dismiss } = useInvestmentRules();
-
-  if (loading) {
-    return (
-      <Screen style={styles.padded}>
-        <ScreenHeader title="Tarefas pendentes" />
-        <LoadingState />
-      </Screen>
-    );
-  }
 
   if (error) {
     return (
@@ -73,7 +64,10 @@ export default function PendingActionsScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={dogRefreshControl(refreshing, reload)}
       >
-        {pending.length === 0 ? (
+        <DogRefreshHeader refreshing={loading || refreshing} />
+        {loading && pending.length === 0 ? (
+          <ListSkeleton />
+        ) : pending.length === 0 ? (
           <EmptyState
             title="Tudo em dia"
             subtitle="Nenhuma tarefa pendente no momento."
@@ -133,7 +127,6 @@ export default function PendingActionsScreen() {
           })
         )}
       </ScrollView>
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </Screen>
   );

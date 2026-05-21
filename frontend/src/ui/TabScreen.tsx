@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 
 type CommonProps = {
   children: ReactNode;
@@ -10,6 +10,7 @@ type CommonProps = {
 
 type ScrollProps = CommonProps & {
   refreshing?: boolean;
+  loading?: boolean;
   onRefresh?: () => void;
   contentContainerStyle?: ViewStyle;
 };
@@ -25,7 +26,7 @@ export function TabScreen({ children, style }: CommonProps) {
   );
 }
 
-export function TabScreenScroll({ children, refreshing, onRefresh, contentContainerStyle, style }: ScrollProps) {
+export function TabScreenScroll({ children, refreshing, loading, onRefresh, contentContainerStyle, style }: ScrollProps) {
   const { colors } = useTheme();
   return (
     <View style={[styles.container, { backgroundColor: colors.brandBackground }]}>
@@ -35,9 +36,9 @@ export function TabScreenScroll({ children, refreshing, onRefresh, contentContai
         showsVerticalScrollIndicator={false}
         refreshControl={onRefresh ? dogRefreshControl(!!refreshing, onRefresh) : undefined}
       >
+        <DogRefreshHeader refreshing={!!refreshing || !!loading} />
         {children}
       </ScrollView>
-      <DogRefreshOverlay refreshing={!!refreshing} />
     </View>
   );
 }

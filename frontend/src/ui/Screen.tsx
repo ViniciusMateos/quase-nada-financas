@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 
 type CommonProps = {
   children: ReactNode;
@@ -49,9 +49,9 @@ export function ScreenScroll({
         contentContainerStyle={[{ paddingTop: insets.top + 8, paddingBottom: 24 }, contentContainerStyle]}
         refreshControl={onRefresh ? dogRefreshControl(!!refreshing, onRefresh) : undefined}
       >
+        <DogRefreshHeader refreshing={!!refreshing} />
         {children}
       </ScrollView>
-      <DogRefreshOverlay refreshing={!!refreshing} />
     </View>
   );
 }

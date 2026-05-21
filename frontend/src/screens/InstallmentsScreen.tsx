@@ -7,8 +7,8 @@ import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { analyticsService, InstallmentsResponse } from '@/services/analytics.service';
-import { EmptyState, ErrorState, LoadingState } from '@/ui/States';
-import { dogRefreshControl, DogRefreshOverlay } from '@/ui/DogRefresh';
+import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
+import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { TabScreen } from '@/ui/TabScreen';
 
 export default function InstallmentsScreen() {
@@ -39,14 +39,6 @@ export default function InstallmentsScreen() {
 
   useFocusRefresh(() => load('refresh'));
 
-  if (loading) {
-    return (
-      <TabScreen>
-        <LoadingState />
-      </TabScreen>
-    );
-  }
-
   if (error) {
     return (
       <TabScreen>
@@ -68,6 +60,11 @@ export default function InstallmentsScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={dogRefreshControl(refreshing, () => load('refresh'))}
       >
+        <DogRefreshHeader refreshing={loading || refreshing} />
+        {loading && !data ? (
+          <ListSkeleton />
+        ) : (
+          <>
         <View style={[styles.summaryCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
           <View style={styles.summaryRow}>
             <SummaryCell label="Ativos" value={`${totals.count}`} colors={colors} />
@@ -154,8 +151,9 @@ export default function InstallmentsScreen() {
             </View>
           ))
         )}
+          </>
+        )}
       </ScrollView>
-      <DogRefreshOverlay refreshing={refreshing} />
       </View>
     </TabScreen>
   );
