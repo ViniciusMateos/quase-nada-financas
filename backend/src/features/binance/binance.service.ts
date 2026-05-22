@@ -12,6 +12,7 @@ interface QuotePayload {
   symbol: string;
   priceBRL: number;
   priceBrl: number; // legacy
+  change24h: number;
   updatedAt: string;
   fetchedAt: string; // legacy
 }
@@ -87,6 +88,7 @@ export class BinanceService {
             locked: b.locked,
             priceBrl: 1,
             totalBrl: round(totalAsset),
+            change24h: 0,
           };
         }
         try {
@@ -99,6 +101,7 @@ export class BinanceService {
             locked: b.locked,
             priceBrl: quote.priceBrl,
             totalBrl: round(totalBrlOnAsset),
+            change24h: quote.change24h,
           };
         } catch {
           // Ativo sem par BRL na Binance — retorna posição com priceBrl=0
@@ -109,6 +112,7 @@ export class BinanceService {
             locked: b.locked,
             priceBrl: 0,
             totalBrl: 0,
+            change24h: 0,
           };
         }
       })
@@ -122,7 +126,7 @@ export class BinanceService {
         name: d.asset,
         quantity: round8(d.free + d.locked),
         valueBRL: d.totalBrl,
-        change24h: 0,
+        change24h: round(d.change24h),
       })),
       fetchedAt: new Date().toISOString(),
     };
@@ -230,12 +234,13 @@ export class BinanceService {
     const cached = await redis.get(cacheKey);
     if (cached) return JSON.parse(cached) as QuotePayload;
 
-    const price = await this.client.getSymbolPrice(`${symbol}BRL`);
+    const { price, changePercent } = await this.client.getSymbol24hr(`${symbol}BRL`);
     const now = new Date().toISOString();
     const payload: QuotePayload = {
       symbol,
       priceBRL: price,
       priceBrl: price, // legacy
+      change24h: changePercent,
       updatedAt: now,
       fetchedAt: now, // legacy
     };

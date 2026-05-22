@@ -35,6 +35,22 @@ export class BinanceClient {
     return Number(json.price);
   }
 
+  /**
+   * Ticker de 24h (sem assinatura): preço atual + variação percentual do dia.
+   */
+  async getSymbol24hr(symbol: string): Promise<{ price: number; changePercent: number }> {
+    const url = `${env.BINANCE_API_URL}/api/v3/ticker/24hr?symbol=${encodeURIComponent(symbol)}`;
+    const res = await request(url, { method: "GET" });
+    if (res.statusCode === 400 || res.statusCode === 404) {
+      throw new Error(`Símbolo ${symbol} não disponível na Binance`);
+    }
+    if (res.statusCode >= 400) {
+      throw new Error(`Binance 24hr ticker error (${res.statusCode})`);
+    }
+    const json = (await res.body.json()) as { lastPrice: string; priceChangePercent: string };
+    return { price: Number(json.lastPrice), changePercent: Number(json.priceChangePercent) };
+  }
+
   async getAccountBalances(apiKey: string, apiSecret: string): Promise<BinanceBalance[]> {
     const params = new URLSearchParams();
     params.set("timestamp", Date.now().toString());
