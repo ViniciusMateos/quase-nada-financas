@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
-import { analyticsService, SubscriptionsResponse } from '@/services/analytics.service';
+import { analyticsService, Subscription, SubscriptionsResponse } from '@/services/analytics.service';
+import { CategoryIcon } from '@/ui/CategoryIcon';
+import { BankIconInline } from '@/ui/BankIconInline';
 import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
 import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { TabScreen } from '@/ui/TabScreen';
 
+/** Extrai o nome do banco do rótulo "Nubank ·1234". */
+function bankNameOf(accountName?: string | null): string | null {
+  if (!accountName) return null;
+  return accountName.split('·')[0]?.trim() || null;
+}
+
 export default function SubscriptionsScreen() {
   const { colors, radius, shadows } = useTheme();
+  const navigation = useNavigation<any>();
   const [data, setData] = useState<SubscriptionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,6 +47,24 @@ export default function SubscriptionsScreen() {
   }, [load, refreshKey]);
 
   useFocusRefresh(() => load('refresh'));
+
+  const openEditor = useCallback(
+    (sub: Subscription) => {
+      navigation.navigate('EditTransaction', {
+        transaction: {
+          id: sub.transactionId,
+          description: sub.label,
+          alias: sub.alias,
+          categoryId: sub.categoryId,
+          categoryName: sub.categoryName,
+          categoryIcon: sub.categoryIcon,
+          categoryColor: sub.categoryColor,
+          isSubscriptionOverride: sub.isSubscriptionOverride,
+        },
+      });
+    },
+    [navigation]
+  );
 
   if (error) {
     return (
@@ -83,25 +111,31 @@ export default function SubscriptionsScreen() {
         ) : (
           <View style={[styles.list, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}>
             {items.map((sub, i) => (
-              <View
+              <Pressable
                 key={sub.key}
-                style={[
+                onPress={() => openEditor(sub)}
+                style={({ pressed }) => [
                   styles.row,
                   i < items.length - 1 && {
                     borderBottomWidth: StyleSheet.hairlineWidth,
                     borderBottomColor: colors.brandDivider,
                   },
+                  pressed && { opacity: 0.7 },
                 ]}
               >
-                <View style={[styles.iconBox, { backgroundColor: colors.brandPrimaryTint }]}>
-                  <Text style={[styles.iconText, { color: colors.brandPrimaryDark }]}>
-                    {sub.label.slice(0, 2).toUpperCase()}
-                  </Text>
+                <View style={styles.iconBox}>
+                  <CategoryIcon icon={sub.categoryIcon} color={sub.categoryColor || colors.brandPrimary} size={20} />
                 </View>
                 <View style={styles.middle}>
                   <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>
                     {sub.label}
                   </Text>
+                  <View style={styles.metaRow}>
+                    <BankIconInline bankName={bankNameOf(sub.accountName)} size={12} />
+                    <Text style={[styles.subMeta, { color: colors.brandTextSecondary, flex: 1 }]} numberOfLines={1}>
+                      {sub.accountName ? `${sub.accountName} • ` : ''}{sub.categoryName || 'Sem categoria'}
+                    </Text>
+                  </View>
                   <Text style={[styles.subMeta, { color: colors.brandTextSecondary }]}>
                     Próxima: {formatDate(sub.nextDate)} · {sub.occurrences} pagamentos
                   </Text>
@@ -112,7 +146,7 @@ export default function SubscriptionsScreen() {
                   </Text>
                   <Text style={[styles.subMeta, { color: colors.brandTextSecondary }]}>/mês</Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -160,11 +194,11 @@ const styles = StyleSheet.create({
   summaryHint: { fontSize: 10, marginTop: 2, fontWeight: '600' },
   list: { overflow: 'hidden' },
   row: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  iconText: { fontSize: 13, fontWeight: '900' },
+  iconBox: { alignItems: 'center', justifyContent: 'center' },
   middle: { flex: 1 },
   subLabel: { fontSize: 15, fontWeight: '700' },
   subMeta: { fontSize: 11, marginTop: 3, fontWeight: '500' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   right: { alignItems: 'flex-end' },
   subAmount: { fontSize: 16, fontWeight: '900' },
 });

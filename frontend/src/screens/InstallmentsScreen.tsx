@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
-import { analyticsService, InstallmentsResponse } from '@/services/analytics.service';
+import { analyticsService, Installment, InstallmentsResponse } from '@/services/analytics.service';
+import { CategoryIcon } from '@/ui/CategoryIcon';
+import { BankIconInline } from '@/ui/BankIconInline';
 import { EmptyState, ErrorState, ListSkeleton } from '@/ui/States';
 import { dogRefreshControl, DogRefreshHeader } from '@/ui/DogRefresh';
 import { TabScreen } from '@/ui/TabScreen';
 
+/** Extrai o nome do banco do rótulo "Nubank ·1234". */
+function bankNameOf(accountName?: string | null): string | null {
+  if (!accountName) return null;
+  return accountName.split('·')[0]?.trim() || null;
+}
+
 export default function InstallmentsScreen() {
   const { colors, radius, shadows } = useTheme();
+  const navigation = useNavigation<any>();
   const [data, setData] = useState<InstallmentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,6 +47,24 @@ export default function InstallmentsScreen() {
   }, [load, refreshKey]);
 
   useFocusRefresh(() => load('refresh'));
+
+  const openEditor = useCallback(
+    (it: Installment) => {
+      navigation.navigate('EditTransaction', {
+        transaction: {
+          id: it.id,
+          description: it.description,
+          alias: it.alias,
+          categoryId: it.categoryId,
+          categoryName: it.categoryName,
+          categoryIcon: it.categoryIcon,
+          categoryColor: it.categoryColor,
+          isSubscriptionOverride: it.isSubscriptionOverride,
+        },
+      });
+    },
+    [navigation]
+  );
 
   if (error) {
     return (
@@ -80,26 +107,32 @@ export default function InstallmentsScreen() {
           />
         ) : (
           items.map((it) => (
-            <View
+            <Pressable
               key={it.id}
-              style={[styles.card, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
+              onPress={() => openEditor(it)}
+              style={({ pressed }) => [
+                styles.card,
+                { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card },
+                pressed && { opacity: 0.85 },
+              ]}
             >
               <View style={styles.cardHeader}>
-                <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 92, 117, 0.15)' }]}>
-                  <Ionicons name="card-outline" size={20} color={colors.brandError} />
+                <View style={styles.iconBox}>
+                  <CategoryIcon icon={it.categoryIcon} color={it.categoryColor || colors.brandPrimary} size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.descLabel, { color: colors.brandTextPrimary }]} numberOfLines={2}>
-                    {it.description}
+                    {it.alias || it.description}
                   </Text>
                   <Text style={[styles.meta, { color: colors.brandTextSecondary }]}>
                     Parcela {it.installmentCurrent}/{it.installmentTotal} · iniciada {formatDate(it.occurredAt)}
                   </Text>
-                  {it.accountName ? (
-                    <Text style={[styles.meta, { color: colors.brandTextSecondary }]} numberOfLines={1}>
-                      {it.accountName}
+                  <View style={styles.metaRow}>
+                    <BankIconInline bankName={bankNameOf(it.accountName)} size={12} />
+                    <Text style={[styles.meta, { color: colors.brandTextSecondary, flex: 1 }]} numberOfLines={1}>
+                      {it.accountName || 'Conta'} • {it.categoryName || 'Sem categoria'}
                     </Text>
-                  ) : null}
+                  </View>
                 </View>
                 <View style={styles.right}>
                   <Text style={[styles.amount, { color: colors.brandTextPrimary }]}>
@@ -148,7 +181,7 @@ export default function InstallmentsScreen() {
                   Quitada ✓
                 </Text>
               )}
-            </View>
+            </Pressable>
           ))
         )}
           </>
@@ -190,9 +223,10 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 17, fontWeight: '900' },
   card: { padding: 14, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  iconBox: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  iconBox: { alignItems: 'center', justifyContent: 'center' },
   descLabel: { fontSize: 14, fontWeight: '700' },
   meta: { fontSize: 11, marginTop: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   right: { alignItems: 'flex-end' },
   amount: { fontSize: 15, fontWeight: '900' },
   barTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginVertical: 10 },

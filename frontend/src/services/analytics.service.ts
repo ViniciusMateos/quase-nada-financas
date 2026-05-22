@@ -11,6 +11,14 @@ export type Subscription = {
   monthlyAmount: number;
   yearlyProjection: number;
   recentTransactionIds: string[];
+  transactionId: string;
+  accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  alias: string | null;
+  isSubscriptionOverride: boolean | null;
 };
 
 export type SubscriptionsResponse = {
@@ -42,6 +50,7 @@ export type CategoryStatsResponse = {
 export type Installment = {
   id: string;
   description: string;
+  alias: string | null;
   merchantName: string | null;
   installmentCurrent: number;
   installmentTotal: number;
@@ -53,6 +62,11 @@ export type Installment = {
   occurredAt: string;
   estimatedLastDate: string | null;
   accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  isSubscriptionOverride: boolean | null;
 };
 
 export type InstallmentsResponse = {

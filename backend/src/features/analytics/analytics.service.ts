@@ -12,6 +12,14 @@ export interface SubscriptionItem {
   monthlyAmount: number;
   yearlyProjection: number;
   recentTransactionIds: string[];
+  transactionId: string;
+  accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  alias: string | null;
+  isSubscriptionOverride: boolean | null;
 }
 
 export interface SubscriptionsPayload {
@@ -37,6 +45,7 @@ export interface CategoryStat {
 export interface InstallmentItem {
   id: string;
   description: string;
+  alias: string | null;
   merchantName: string | null;
   installmentCurrent: number;
   installmentTotal: number;
@@ -48,6 +57,11 @@ export interface InstallmentItem {
   occurredAt: string;
   estimatedLastDate: string | null;
   accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  isSubscriptionOverride: boolean | null;
 }
 
 export class AnalyticsService {
@@ -79,9 +93,19 @@ export class AnalyticsService {
         id: true,
         amount: true,
         description: true,
+        alias: true,
         merchantName: true,
         occurredAt: true,
         isSubscriptionOverride: true,
+        categoryId: true,
+        category: { select: { name: true, icon: true, color: true } },
+        bankAccount: {
+          select: {
+            type: true,
+            number: true,
+            connectedAccount: { select: { bankName: true, customName: true } },
+          },
+        },
       },
     });
 
@@ -122,6 +146,12 @@ export class AnalyticsService {
       const next = new Date(lastDate);
       next.setDate(next.getDate() + 30);
 
+      const ba = last.bankAccount;
+      const conn = ba?.connectedAccount;
+      const bankLabel = conn?.customName || conn?.bankName || null;
+      const cardSuffix = ba?.type === "CREDIT" && ba?.number ? ` ·${String(ba.number).slice(-4)}` : "";
+      const accountName = bankLabel ? `${bankLabel}${cardSuffix}` : null;
+
       items.push({
         key: g.key,
         label: prettyLabel(last.merchantName, last.description),
@@ -133,6 +163,14 @@ export class AnalyticsService {
         monthlyAmount: round(g.amount),
         yearlyProjection: round(g.amount * 12),
         recentTransactionIds: g.txs.slice(-3).map((t) => t.id),
+        transactionId: last.id,
+        accountName,
+        categoryId: last.categoryId ?? null,
+        categoryName: last.category?.name ?? null,
+        categoryIcon: last.category?.icon ?? null,
+        categoryColor: last.category?.color ?? null,
+        alias: last.alias ?? null,
+        isSubscriptionOverride: last.isSubscriptionOverride ?? null,
       });
     }
 
@@ -239,10 +277,14 @@ export class AnalyticsService {
         id: true,
         amount: true,
         description: true,
+        alias: true,
         merchantName: true,
         installmentCurrent: true,
         installmentTotal: true,
         occurredAt: true,
+        categoryId: true,
+        isSubscriptionOverride: true,
+        category: { select: { name: true, icon: true, color: true } },
         bankAccount: {
           select: {
             type: true,
@@ -293,6 +335,7 @@ export class AnalyticsService {
       items.push({
         id: latest.id,
         description: latest.description,
+        alias: latest.alias ?? null,
         merchantName: latest.merchantName,
         installmentCurrent: current,
         installmentTotal: total,
@@ -304,6 +347,11 @@ export class AnalyticsService {
         occurredAt: latest.occurredAt.toISOString(),
         estimatedLastDate: monthsLeft > 0 ? estimatedLast.toISOString() : null,
         accountName,
+        categoryId: latest.categoryId ?? null,
+        categoryName: latest.category?.name ?? null,
+        categoryIcon: latest.category?.icon ?? null,
+        categoryColor: latest.category?.color ?? null,
+        isSubscriptionOverride: latest.isSubscriptionOverride ?? null,
       });
       totalPaid += paidAmount;
       totalRemaining += remaining;
