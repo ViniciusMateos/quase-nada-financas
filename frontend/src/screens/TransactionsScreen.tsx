@@ -397,8 +397,10 @@ export default function TransactionsScreen() {
         <ListSkeleton />
       ) : (
       <SectionList
+        key={`${accountFilter ?? 'all'}|${sourceFilter}`}
         sections={sections}
         keyExtractor={(item) => item.id}
+        extraData={`${typeFilter}|${monthOffset}|${search}`}
         renderItem={({ item, index, section }) => (
           <View
             style={[

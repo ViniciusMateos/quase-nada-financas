@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDataRefreshKey } from '@/contexts/DataRefreshContext';
 import { normalizeError } from '@/lib/errorMap';
 import { transactionsService } from '@/services/transactions.service';
@@ -21,8 +21,14 @@ export function useTransactions(initialFilters: TransactionFilters = {}) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshKey = useDataRefreshKey();
+  // Sequência de requisições: respostas obsoletas (de um filtro anterior, ou de
+  // um loadMore que terminou depois de trocar o filtro) são descartadas. Sem
+  // isso, uma página antiga chega depois e é anexada à lista nova, embaralhando
+  // a ordem e "fixando" transações que não são mais do filtro atual.
+  const seqRef = useRef(0);
 
   const load = useCallback(async (cursor?: string | null) => {
+    const seq = ++seqRef.current;
     cursor ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
@@ -34,13 +40,20 @@ export function useTransactions(initialFilters: TransactionFilters = {}) {
       };
       if (accountIds && accountIds.length > 0) params.accountIds = accountIds.join(',');
       const page = await transactionsService.list(params);
-      setItems((current) => cursor ? [...current, ...page.items] : page.items);
+      if (seq !== seqRef.current) return; // resposta obsoleta — ignora
+      setItems((current) => {
+        if (!cursor) return page.items;
+        const seen = new Set(current.map((t) => t.id));
+        return [...current, ...page.items.filter((t) => !seen.has(t.id))];
+      });
       setNextCursor(page.nextCursor);
     } catch (err) {
-      setError(normalizeError(err).message);
+      if (seq === seqRef.current) setError(normalizeError(err).message);
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (seq === seqRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, [filters]);
 
