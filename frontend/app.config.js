@@ -42,7 +42,8 @@ const current = variants[variant];
 
 const extra = {
   apiBaseUrl: process.env.EXPO_PUBLIC_API_URL,
-  appVariant: variant
+  appVariant: variant,
+  eas: { projectId: 'efcaf77a-c0c2-423a-9e53-fd9d06ccf6f5' }
 };
 
 if (process.env.EAS_PROJECT_ID) {

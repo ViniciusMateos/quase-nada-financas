@@ -9,7 +9,6 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { AppLockGate } from '@/ui/AppLockGate';
 import { LoadingDog } from '@/ui/LoadingDog';
-import { DebugOverlay } from '@/ui/DebugOverlay';
 
 function AppShell() {
   const { colors } = useTheme();
@@ -38,7 +37,6 @@ export default function App() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AppShell />
-          <DebugOverlay />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
