@@ -10,6 +10,9 @@ export type PortfolioItem = {
   profitBrl: number | null;
   profitPct: number | null;
   dayChangePct: number | null;
+  dayChangeBrl: number | null;
+  monthChangePct: number | null;
+  monthChangeBrl: number | null;
   annualRate: number | null;
   dueDate: string | null;
 };
@@ -45,5 +48,7 @@ export type PortfolioMovement = {
 export const portfolioService = {
   get: () => apiClient.get<unknown, Portfolio>('/portfolio'),
   investmentTransactions: (id: string) =>
-    apiClient.get<unknown, { movements: PortfolioMovement[] }>(`/portfolio/investments/${id}/transactions`),
+    apiClient.get<unknown, { movements: PortfolioMovement[] }>(
+      `/portfolio/investments/${encodeURIComponent(id)}/transactions`
+    ),
 };

@@ -61,19 +61,27 @@ export default function AssetsScreen() {
     if (wallet?.connected && wallet.assets.length > 0) {
       const binance: PortfolioGroup = {
         source: 'Binance',
-        items: wallet.assets.map((a) => ({
-          id: a.symbol,
-          name: a.name || a.symbol,
-          assetClass: 'Cripto',
-          quantity: a.quantity,
-          investedBrl: null,
-          currentBrl: a.valueBRL,
-          profitBrl: null,
-          profitPct: a.change24h ?? null,
-          dayChangePct: null,
-          annualRate: null,
-          dueDate: null,
-        })),
+        items: wallet.assets.map((a) => {
+          const chg = a.change24h ?? null;
+          // delta em R$ a partir da variação de 24h: valor atual − valor de ontem.
+          const dayBrl = chg != null && 1 + chg / 100 !== 0 ? a.valueBRL - a.valueBRL / (1 + chg / 100) : null;
+          return {
+            id: a.symbol,
+            name: a.name || a.symbol,
+            assetClass: 'Cripto',
+            quantity: a.quantity,
+            investedBrl: null,
+            currentBrl: a.valueBRL,
+            profitBrl: null,
+            profitPct: chg, // badge "24h" no item
+            dayChangePct: null,
+            dayChangeBrl: dayBrl, // entra no total de valorização do dia
+            monthChangePct: null,
+            monthChangeBrl: null,
+            annualRate: null,
+            dueDate: null,
+          };
+        }),
         totals: { invested: 0, current: wallet.totalBRL, profit: 0 },
       };
       return [...pluggy, binance];
@@ -135,6 +143,29 @@ export default function AssetsScreen() {
   const totalInvested = shownTotals.invested;
   const totalProfit = shownTotals.profit;
 
+  // Valorização (dia/mês) somada dos itens exibidos — acompanha o filtro e
+  // inclui a cripto (cada item carrega seu delta em R$). O valor de "ontem"/
+  // "mês passado" é reconstruído como current − delta.
+  const shownVariation = useMemo(() => {
+    const agg = (key: 'dayChangeBrl' | 'monthChangeBrl') => {
+      let delta = 0;
+      let base = 0;
+      let has = false;
+      for (const g of filteredGroups) {
+        for (const it of g.items) {
+          const d = it[key];
+          if (typeof d === 'number') {
+            delta += d;
+            base += it.currentBrl - d;
+            has = true;
+          }
+        }
+      }
+      return has && base > 0 ? { brl: delta, pct: (delta / base) * 100 } : null;
+    };
+    return { day: agg('dayChangeBrl'), month: agg('monthChangeBrl') };
+  }, [filteredGroups]);
+
   if (error) {
     return (
       <TabScreenScroll refreshing={false} onRefresh={handleRefresh}>
@@ -169,17 +200,19 @@ export default function AssetsScreen() {
                 {totalInvested > 0 ? ` (${((totalProfit / totalInvested) * 100).toFixed(1)}%)` : ''}
               </Text>
             ) : null}
-            {!classFilter && portfolio?.variation ? (
-              portfolio.variation.dayPct != null || portfolio.variation.monthPct != null ? (
-                <Text style={styles.heroSub}>
-                  {portfolio.variation.dayPct != null ? `Hoje ${portfolio.variation.dayPct >= 0 ? '+' : ''}${portfolio.variation.dayPct.toFixed(2)}%` : ''}
-                  {portfolio.variation.dayPct != null && portfolio.variation.monthPct != null ? '  ·  ' : ''}
-                  {portfolio.variation.monthPct != null ? `Mês ${portfolio.variation.monthPct >= 0 ? '+' : ''}${portfolio.variation.monthPct.toFixed(2)}%` : ''}
-                </Text>
-              ) : (
-                <Text style={[styles.heroSub, { opacity: 0.65 }]}>Valorização: juntando histórico…</Text>
-              )
-            ) : null}
+            {shownVariation.day || shownVariation.month ? (
+              <Text style={styles.heroSub}>
+                {shownVariation.day
+                  ? `Hoje ${shownVariation.day.pct >= 0 ? '+' : ''}${shownVariation.day.pct.toFixed(2)}% (${shownVariation.day.brl >= 0 ? '+' : '-'}${formatCurrency(Math.abs(shownVariation.day.brl))})`
+                  : ''}
+                {shownVariation.day && shownVariation.month ? '  ·  ' : ''}
+                {shownVariation.month
+                  ? `Mês ${shownVariation.month.pct >= 0 ? '+' : ''}${shownVariation.month.pct.toFixed(2)}%`
+                  : ''}
+              </Text>
+            ) : (
+              <Text style={[styles.heroSub, { opacity: 0.65 }]}>Valorização: juntando histórico…</Text>
+            )}
           </View>
 
           {/* Alocação por classe (só na visão geral) */}
@@ -236,18 +269,18 @@ export default function AssetsScreen() {
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={[styles.itemValue, { color: colors.brandTextPrimary }]}>{formatCurrency(it.currentBrl)}</Text>
-                      {it.profitBrl != null ? (
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: it.profitBrl >= 0 ? colors.brandTextPositive : colors.brandTextNegative }}>
-                          {it.profitBrl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(it.profitBrl))}
-                          {it.profitPct != null ? ` (${it.profitBrl >= 0 ? '+' : '-'}${Math.abs(it.profitPct).toFixed(1)}%)` : ''}
-                        </Text>
-                      ) : it.dayChangePct != null ? (
+                      {it.dayChangePct != null ? (
                         <Text style={{ fontSize: 12, fontWeight: '700', color: it.dayChangePct >= 0 ? colors.brandTextPositive : colors.brandTextNegative }}>
                           hoje {it.dayChangePct >= 0 ? '+' : ''}{it.dayChangePct.toFixed(2)}%
                         </Text>
                       ) : it.profitPct != null ? (
                         <Text style={{ fontSize: 12, fontWeight: '700', color: it.profitPct >= 0 ? colors.brandTextPositive : colors.brandTextNegative }}>
                           24h {it.profitPct >= 0 ? '+' : ''}{it.profitPct.toFixed(2)}%
+                        </Text>
+                      ) : it.profitBrl != null ? (
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: it.profitBrl >= 0 ? colors.brandTextPositive : colors.brandTextNegative }}>
+                          {it.profitBrl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(it.profitBrl))}
+                          {it.profitPct != null ? ` (${it.profitBrl >= 0 ? '+' : '-'}${Math.abs(it.profitPct).toFixed(1)}%)` : ''}
                         </Text>
                       ) : null}
                     </View>

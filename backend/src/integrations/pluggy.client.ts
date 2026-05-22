@@ -41,6 +41,8 @@ export interface PluggyTransaction {
 export interface PluggyInvestment {
   id: string;
   name?: string;
+  code?: string;       // ticker B3 (ex: ITSA3, JSRE11) — quando disponível
+  isin?: string;
   type?: string;       // MUTUAL_FUND | FIXED_INCOME | EQUITY | ETF | SECURITY | COE | ...
   subtype?: string;    // STOCK | REAL_ESTATE_FUND | TREASURY | CDB | LCI | LCA | ...
   currencyCode?: string;
