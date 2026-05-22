@@ -65,7 +65,7 @@ export class AccountsService {
     }
 
     const investments = await this.pluggy.listInvestments(itemId);
-    await this.repo.setInvestmentFlag(connected.id, investments.length > 0);
+    await this.repo.setInvestmentFlag(connected.id, isPureInvestment(accounts, investments.length));
 
     await this.invalidateDashboardCache(userId);
     return { connectedAccountId: connected.id, bankName: connected.bankName };
@@ -248,7 +248,7 @@ export class AccountsService {
 
     // Marca como corretora se tiver investimentos (exclui do saldo/transações).
     const investments = await this.pluggy.listInvestments(conn.pluggyItemId);
-    await this.repo.setInvestmentFlag(conn.id, investments.length > 0);
+    await this.repo.setInvestmentFlag(conn.id, isPureInvestment(remoteAccounts, investments.length));
 
     await this.repo.touchConnectedAccount(conn.id);
     await this.invalidateDashboardCache(userId);
@@ -266,6 +266,20 @@ export class AccountsService {
     const keys = await redis.keys(`dashboard:${userId}:*`);
     if (keys.length > 0) await redis.del(...keys);
   }
+}
+
+/**
+ * Decide se a conta conectada é uma corretora "pura" (deve sumir do saldo e
+ * das transações). Só é considerada investimento se tiver investimentos E
+ * NÃO tiver cartão de crédito: bancos como o Nubank têm "caixinha" (que vem
+ * como investimento) mas continuam sendo conta de gastos — devem aparecer nas
+ * Contas, com a caixinha aparecendo só na aba Ativos. Corretoras (XP, Rico)
+ * não emitem cartão de crédito.
+ */
+function isPureInvestment(accounts: Array<{ type?: string }>, investmentCount: number): boolean {
+  if (investmentCount === 0) return false;
+  const hasCreditCard = accounts.some((a) => a.type === "CREDIT");
+  return !hasCreditCard;
 }
 
 /** Pluggy retorna datas como ISO string ou yyyy-MM-dd. Retorna null se inválido. */
