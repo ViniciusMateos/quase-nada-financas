@@ -3,6 +3,37 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [1.0.0] - 2026-05-22
+
+### Added
+
+- Valorizacao real da carteira: cotacao B3 ao vivo (Yahoo) para FII,
+  acoes e ETF, com variacao do dia e do mes por ativo e valorizacao
+  total somando a cripto. O filtro por classe recalcula valor e
+  valorizacao.
+- Caixinha do Nubank (e posicoes de mesmo nome) agrupadas numa linha so,
+  com os aportes ao tocar; posicoes zeradas sao escondidas.
+- Parcelamentos e Assinaturas no estilo das transacoes: icone e nome da
+  categoria, banco com logo e toque abre o editor da transacao.
+
+### Changed
+
+- Lucro dos ativos calculado contra o valor de mercado ao vivo, em vez do
+  valor congelado da Pluggy.
+
+### Fixed
+
+- Variacao de 24h da Binance agora e real (antes ficava fixa em 0%).
+- Banco com caixinha (ex: Nubank) nao some mais das Contas e transacoes:
+  so e tratado como corretora quem tem investimento e nao tem cartao de
+  credito; a caixinha aparece na aba Ativos.
+- Lista de transacoes nao embaralha mais ao trocar de filtro (corrige a
+  race da paginacao, de-dup por id e remonta a lista).
+
+### Removed
+
+- Overlay de logs de debug ("VER LOGS") do app.
+
 ## [0.5.0] - 2026-05-21
 
 ### Added
