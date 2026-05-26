@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
+import { demoMode } from '@/lib/demoMode';
+import { demoApi } from '@/demo/demoStore';
 
 export type Subscription = {
   key: string;
@@ -91,9 +93,12 @@ export type WeeklySummary = {
 };
 
 export const analyticsService = {
-  subscriptions: () => apiClient.get<unknown, SubscriptionsResponse>('/subscriptions'),
-  weeklySummary: () => apiClient.get<unknown, WeeklySummary>('/analytics/weekly-summary'),
+  subscriptions: () =>
+    demoMode.isActive() ? demoApi.analytics.subscriptions() : apiClient.get<unknown, SubscriptionsResponse>('/subscriptions'),
+  weeklySummary: () =>
+    demoMode.isActive() ? demoApi.analytics.weeklySummary() : apiClient.get<unknown, WeeklySummary>('/analytics/weekly-summary'),
   categoryStats: (opts: { month?: string; startDate?: string; endDate?: string } = {}) => {
+    if (demoMode.isActive()) return demoApi.analytics.categoryStats(opts);
     const params: Record<string, string> = {};
     if (opts.startDate && opts.endDate) {
       params.startDate = opts.startDate;
@@ -103,5 +108,6 @@ export const analyticsService = {
     }
     return apiClient.get<unknown, CategoryStatsResponse>('/categories/stats', { params });
   },
-  installments: () => apiClient.get<unknown, InstallmentsResponse>('/installments'),
+  installments: () =>
+    demoMode.isActive() ? demoApi.analytics.installments() : apiClient.get<unknown, InstallmentsResponse>('/installments'),
 };

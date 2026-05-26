@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { normalizeError } from '@/lib/errorMap';
 import { LoadingDog } from '@/ui/LoadingDog';
+import { DemoEntryButton } from '@/ui/DemoEntryButton';
 import type { SavedAccount } from '@/lib/savedAccounts';
 
 export default function AccountHubScreen() {
@@ -172,6 +173,8 @@ export default function AccountHubScreen() {
             <Text style={styles.registerLink}>Criar conta</Text>
           </Pressable>
         </View>
+
+        <DemoEntryButton style={{ marginTop: 20 }} />
       </ScrollView>
 
       {/* Modal de senha (fallback) */}

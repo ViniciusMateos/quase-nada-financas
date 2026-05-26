@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
+import { demoMode } from '@/lib/demoMode';
+import { demoApi } from '@/demo/demoStore';
 import type { InvestmentPendingAction, InvestmentRule } from '@/types/api.types';
 
 export type CreateRuleBody = {
@@ -18,20 +20,34 @@ export type UpdateRuleBody = Partial<CreateRuleBody>;
 
 export const investmentsService = {
   listRules: () =>
-    apiClient.get<unknown, { rules: InvestmentRule[] }>('/investments/rules'),
+    demoMode.isActive()
+      ? demoApi.investments.listRules()
+      : apiClient.get<unknown, { rules: InvestmentRule[] }>('/investments/rules'),
   createRule: (body: CreateRuleBody) =>
-    apiClient.post<CreateRuleBody, InvestmentRule>('/investments/rules', body),
+    demoMode.isActive()
+      ? demoApi.investments.createRule(body)
+      : apiClient.post<CreateRuleBody, InvestmentRule>('/investments/rules', body),
   updateRule: (id: string, body: UpdateRuleBody) =>
-    apiClient.patch<UpdateRuleBody, InvestmentRule>(`/investments/rules/${id}`, body),
+    demoMode.isActive()
+      ? demoApi.investments.updateRule(id, body)
+      : apiClient.patch<UpdateRuleBody, InvestmentRule>(`/investments/rules/${id}`, body),
   deleteRule: (id: string) =>
-    apiClient.delete<unknown, void>(`/investments/rules/${id}`),
+    demoMode.isActive()
+      ? demoApi.investments.deleteRule(id)
+      : apiClient.delete<unknown, void>(`/investments/rules/${id}`),
 
   listPending: (includeFinalized = false) =>
-    apiClient.get<unknown, { items: InvestmentPendingAction[] }>('/investments/pending', {
-      params: { includeFinalized },
-    }),
+    demoMode.isActive()
+      ? demoApi.investments.listPending()
+      : apiClient.get<unknown, { items: InvestmentPendingAction[] }>('/investments/pending', {
+          params: { includeFinalized },
+        }),
   approvePending: (id: string) =>
-    apiClient.post<unknown, InvestmentPendingAction>(`/investments/pending/${id}/approve`),
+    demoMode.isActive()
+      ? demoApi.investments.approvePending(id)
+      : apiClient.post<unknown, InvestmentPendingAction>(`/investments/pending/${id}/approve`),
   dismissPending: (id: string) =>
-    apiClient.post<unknown, InvestmentPendingAction>(`/investments/pending/${id}/dismiss`),
+    demoMode.isActive()
+      ? demoApi.investments.dismissPending(id)
+      : apiClient.post<unknown, InvestmentPendingAction>(`/investments/pending/${id}/dismiss`),
 };

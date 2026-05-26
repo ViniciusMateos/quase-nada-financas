@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
+import { demoMode } from '@/lib/demoMode';
+import { demoApi } from '@/demo/demoStore';
 
 export type PortfolioItem = {
   id: string;
@@ -46,9 +48,12 @@ export type PortfolioMovement = {
 };
 
 export const portfolioService = {
-  get: () => apiClient.get<unknown, Portfolio>('/portfolio'),
+  get: () =>
+    demoMode.isActive() ? demoApi.portfolio.get() : apiClient.get<unknown, Portfolio>('/portfolio'),
   investmentTransactions: (id: string) =>
-    apiClient.get<unknown, { movements: PortfolioMovement[] }>(
-      `/portfolio/investments/${encodeURIComponent(id)}/transactions`
-    ),
+    demoMode.isActive()
+      ? demoApi.portfolio.investmentTransactions()
+      : apiClient.get<unknown, { movements: PortfolioMovement[] }>(
+          `/portfolio/investments/${encodeURIComponent(id)}/transactions`
+        ),
 };

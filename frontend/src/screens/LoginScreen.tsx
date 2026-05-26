@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { normalizeError } from '@/lib/errorMap';
 import { LoadingDog } from '@/ui/LoadingDog';
+import { DemoEntryButton } from '@/ui/DemoEntryButton';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -115,6 +116,8 @@ export default function LoginScreen() {
               <Text style={styles.footerLink}>Criar conta</Text>
             </Pressable>
           </View>
+
+          <DemoEntryButton style={{ marginTop: 16 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 

@@ -26,7 +26,7 @@ const AVATAR_COLORS = [
 
 export default function SettingsScreen() {
   const navigation = useNavigation<any>();
-  const { user, logout, loading, savedAccounts, updateSavedAccount, deleteAccount } = useAuth();
+  const { user, logout, loading, savedAccounts, updateSavedAccount, deleteAccount, isDemo, enterDemo, exitDemo } = useAuth();
   const { colors, radius, shadows, mode, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -130,25 +130,40 @@ export default function SettingsScreen() {
 
         {/* Conta */}
         <Text style={styles.section}>Conta</Text>
-        <View style={[styles.menuCard, { ...shadows.card }]}>
-          <MenuItem icon="key-outline" label="Alterar senha" onPress={() => navigation.navigate('ChangePassword')} colors={colors} styles={styles} />
-          <View style={styles.divider} />
-          <MenuItem icon="swap-horizontal-outline" label="Trocar de conta" onPress={logout} colors={colors} styles={styles} />
-          <View style={styles.divider} />
-          <MenuItem icon="trash-outline" label="Excluir conta" destructive onPress={openDelete} colors={colors} styles={styles} />
-        </View>
+        {isDemo ? (
+          <View style={[styles.menuCard, { ...shadows.card }]}>
+            <MenuItem icon="play-circle-outline" label="Você está na demonstração" onPress={() => {}} colors={colors} styles={styles} />
+          </View>
+        ) : (
+          <View style={[styles.menuCard, { ...shadows.card }]}>
+            <MenuItem icon="key-outline" label="Alterar senha" onPress={() => navigation.navigate('ChangePassword')} colors={colors} styles={styles} />
+            <View style={styles.divider} />
+            <MenuItem icon="swap-horizontal-outline" label="Trocar de conta" onPress={logout} colors={colors} styles={styles} />
+            <View style={styles.divider} />
+            <MenuItem icon="play-circle-outline" label="Ver demonstração" onPress={enterDemo} colors={colors} styles={styles} />
+            <View style={styles.divider} />
+            <MenuItem icon="trash-outline" label="Excluir conta" destructive onPress={openDelete} colors={colors} styles={styles} />
+          </View>
+        )}
 
         {/* Sair */}
-        <Pressable style={styles.logoutBtn} onPress={confirmLogout} disabled={loading}>
-          {loading ? (
-            <LoadingDog size={24} color={colors.brandError} />
-          ) : (
-            <>
-              <Ionicons name="log-out-outline" size={20} color={colors.brandError} />
-              <Text style={styles.logoutText}>Sair</Text>
-            </>
-          )}
-        </Pressable>
+        {isDemo ? (
+          <Pressable style={styles.logoutBtn} onPress={exitDemo}>
+            <Ionicons name="exit-outline" size={20} color={colors.brandError} />
+            <Text style={styles.logoutText}>Sair da demonstração</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.logoutBtn} onPress={confirmLogout} disabled={loading}>
+            {loading ? (
+              <LoadingDog size={24} color={colors.brandError} />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={20} color={colors.brandError} />
+                <Text style={styles.logoutText}>Sair</Text>
+              </>
+            )}
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* Sheet excluir conta — BottomSheet (fundo escurece no lugar + arrasta pra fechar) */}

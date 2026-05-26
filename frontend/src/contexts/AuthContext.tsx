@@ -1,6 +1,9 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { authService } from '@/services/auth.service';
 import { authEvents } from '@/lib/authEvents';
+import { demoMode } from '@/lib/demoMode';
+import { demoStore } from '@/demo/demoStore';
+import { DEMO_USER } from '@/demo/demoData';
 import { tokenStorage } from '@/lib/tokenStorage';
 import {
   getSavedAccounts,
@@ -11,7 +14,7 @@ import {
 } from '@/lib/savedAccounts';
 import type { LoginRequest, RegisterRequest, User } from '@/types/api.types';
 
-type State = { user: User | null; booting: boolean; loading: boolean };
+type State = { user: User | null; booting: boolean; loading: boolean; isDemo: boolean };
 type AuthContextValue = State & {
   savedAccounts: SavedAccount[];
   login(data: LoginRequest): Promise<void>;
@@ -23,6 +26,10 @@ type AuthContextValue = State & {
   deleteAccount(password: string): Promise<void>;
   logout(): Promise<void>;
   bootstrap(): Promise<void>;
+  /** Entra no modo demonstração com dados fictícios (sem token, sem rede). */
+  enterDemo(): void;
+  /** Sai do demo e restaura a sessão real (se houver) ou volta pro hub. */
+  exitDemo(): Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -31,7 +38,7 @@ function reducer(state: State, patch: Partial<State>) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { user: null, booting: true, loading: false });
+  const [state, dispatch] = useReducer(reducer, { user: null, booting: true, loading: false, isDemo: false });
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
 
   const reloadSavedAccounts = useCallback(async () => {
@@ -39,8 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearSession = useCallback(async () => {
+    demoMode.set(false);
     await tokenStorage.clearTokens();
-    dispatch({ user: null, booting: false, loading: false });
+    dispatch({ user: null, booting: false, loading: false, isDemo: false });
   }, []);
 
   const bootstrap = useCallback(async () => {
@@ -54,6 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await clearSession();
     }
   }, [clearSession]);
+
+  const enterDemo = useCallback(() => {
+    demoStore.reset();
+    demoMode.set(true);
+    dispatch({ user: DEMO_USER, isDemo: true, booting: false, loading: false });
+  }, []);
+
+  const exitDemo = useCallback(async () => {
+    demoMode.set(false);
+    demoStore.reset();
+    dispatch({ isDemo: false });
+    // Restaura a sessão real (tokens no SecureStore) ou cai pro hub se não houver.
+    await bootstrap();
+  }, [bootstrap]);
 
   const login = useCallback(async (data: LoginRequest) => {
     dispatch({ loading: true });
@@ -169,9 +191,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return authEvents.onForceLogout(clearSession);
   }, [bootstrap, clearSession, reloadSavedAccounts]);
 
-  // Registra o push token sempre que houver usuário logado.
+  // Registra o push token sempre que houver usuário logado (nunca no demo).
   useEffect(() => {
-    if (!state.user) return;
+    if (!state.user || state.isDemo) return;
     (async () => {
       try {
         const { registerForPushNotifications } = await import('@/lib/pushNotifications');
@@ -181,11 +203,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // best-effort; sem push se falhar
       }
     })();
-  }, [state.user]);
+  }, [state.user, state.isDemo]);
 
   const value = useMemo(
-    () => ({ ...state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap }),
-    [state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap]
+    () => ({ ...state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, exitDemo }),
+    [state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, exitDemo]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

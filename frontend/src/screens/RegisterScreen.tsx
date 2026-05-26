@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { normalizeError } from '@/lib/errorMap';
 import { LoadingDog } from '@/ui/LoadingDog';
+import { DemoEntryButton } from '@/ui/DemoEntryButton';
 
 export default function RegisterScreen() {
   const navigation = useNavigation<any>();
@@ -132,6 +133,8 @@ export default function RegisterScreen() {
               <Text style={styles.footerLink}>Entrar</Text>
             </Pressable>
           </View>
+
+          <DemoEntryButton style={{ marginTop: 16 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 

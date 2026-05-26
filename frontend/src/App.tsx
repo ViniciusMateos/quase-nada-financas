@@ -8,6 +8,7 @@ import { DataRefreshProvider } from '@/contexts/DataRefreshContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { AppLockGate } from '@/ui/AppLockGate';
+import { DemoBanner } from '@/ui/DemoBanner';
 import { LoadingDog } from '@/ui/LoadingDog';
 
 function AppShell() {
@@ -23,7 +24,10 @@ function AppShell() {
           }
         >
           <AppLockGate>
-            <RootNavigator />
+            <View style={{ flex: 1 }}>
+              <DemoBanner />
+              <RootNavigator />
+            </View>
           </AppLockGate>
         </Suspense>
       </DataRefreshProvider>
