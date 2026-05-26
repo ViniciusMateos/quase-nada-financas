@@ -10,7 +10,7 @@ import { LoadingDog } from '@/ui/LoadingDog';
 const RELOCK_AFTER_MS = 15_000;
 
 export function AppLockGate({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, booting, isDemo } = useAuth();
   const { colors } = useTheme();
   const [unlocked, setUnlocked] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
@@ -49,16 +49,23 @@ export function AppLockGate({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Autentica ao montar (quando há sessão)
+  // Decide o lock só DEPOIS do bootstrap. No cold start o `user` começa null
+  // (sessão ainda hidratando); decidir antes desbloqueava a tela e o Face ID
+  // nunca disparava quando o user chegava. Esperar `booting` resolve isso.
   useEffect(() => {
+    if (booting) return; // ainda descobrindo se há sessão salva
+    if (isDemo) {
+      setUnlocked(true); // modo demonstração nunca pede biometria
+      return;
+    }
     if (user && !unlocked) {
-      authenticate();
+      authenticate(); // há sessão real → exige Face ID antes de mostrar dados
     }
     if (!user) {
-      // Sem sessão: libera (a tela de login cuida do acesso)
+      // Sem sessão: libera (a tela de login cuida do acesso, nada sensível ainda)
       setUnlocked(true);
     }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, booting, isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-bloqueia ao voltar do background (após RELOCK_AFTER_MS)
   useEffect(() => {
@@ -67,23 +74,23 @@ export function AppLockGate({ children }: { children: ReactNode }) {
         backgroundedAt.current = Date.now();
       } else if (next === 'active') {
         const awayFor = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
-        if (user && awayFor >= RELOCK_AFTER_MS) {
+        if (user && !isDemo && awayFor >= RELOCK_AFTER_MS) {
           setUnlocked(false);
         }
         backgroundedAt.current = null;
       }
     });
     return () => sub.remove();
-  }, [user]);
+  }, [user, isDemo]);
 
   // Quando re-bloquear, dispara autenticação de novo
   useEffect(() => {
-    if (user && !unlocked && !authenticating) {
+    if (user && !isDemo && !unlocked && !authenticating) {
       authenticate();
     }
-  }, [unlocked, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [unlocked, user, isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (user && !unlocked) {
+  if (user && !unlocked && !isDemo) {
     return (
       <View style={[styles.container, { backgroundColor: colors.brandBackground }]}>
         <View style={[styles.iconWrap, { backgroundColor: colors.brandPrimaryTint }]}>
