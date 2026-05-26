@@ -3,6 +3,22 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [1.1.0] - 2026-05-25
+
+### Added
+
+- Modo demonstracao: entra com dados ficticios (bancos reais como Nubank,
+  Itau e Inter, mas saldos, transacoes, parcelamentos e investimentos
+  inventados), sem rede nem biometria. Acessivel pelas telas de login,
+  registro e hub, e tambem pelas configuracoes. Ao sair, restaura a
+  sessao real ou volta pro hub.
+
+### Fixed
+
+- Biometria (Face ID) nao disparava no primeiro cold start do app: o gate
+  desbloqueava antes da sessao hidratar e so pedia autenticacao depois de
+  fechar e reabrir. Agora espera o bootstrap antes de decidir o bloqueio.
+
 ## [1.0.0] - 2026-05-22
 
 ### Added
