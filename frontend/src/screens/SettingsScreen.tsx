@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
+  GestureResponderEvent,
   Image,
   Pressable,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +25,10 @@ const AVATAR_COLORS = [
   '#6366F1', '#8B5CF6', '#EC4899',
   '#F59E0B', '#EF4444', '#64748B',
 ];
+
+// Duração compartilhada entre a expansão do picker e o deslize dos blocos
+// abaixo dele — mesmo timing pra sensação de "uma animação só".
+const PICKER_DUR_MS = 260;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<any>();
@@ -42,6 +48,13 @@ export default function SettingsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // O reanimated cuida das animações: o picker entra/sai com Fade, e os
+  // Animated.View envolvendo cada bloco têm `layout={LinearTransition}` —
+  // quando o card de cima cresce/encolhe, eles acompanham deslizando junto.
+  function toggleColorPicker() {
+    setColorPickerOpen((v) => !v);
+  }
+
   function pickColor(color: string) {
     if (user?.email) updateSavedAccount(user.email, { color });
     setColorPickerOpen(false);
@@ -52,6 +65,20 @@ export default function SettingsScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Sair', style: 'destructive', onPress: logout },
     ]);
+  }
+
+  // Alert nativo confirmando a saída da demo — respeita o tema do app (claro
+  // ou escuro), independente do tema do sistema.
+  function confirmExitDemo() {
+    Alert.alert(
+      'Sair da demonstração?',
+      'Você volta pra tela de contas. Pode entrar de novo a hora que quiser.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: exitDemo },
+      ],
+      { userInterfaceStyle: mode === 'dark' ? 'dark' : 'light' }
+    );
   }
 
   function openDelete() {
@@ -79,8 +106,9 @@ export default function SettingsScreen() {
     <TabScreen>
       <Text style={styles.title}>Ajustes</Text>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
-        {/* Perfil + cor do avatar */}
-        <View style={[styles.card, { ...shadows.card }]}>
+        {/* Perfil + cor do avatar — Animated.View pra altura do card animar
+            suavemente quando o color picker abre/fecha logo abaixo. */}
+        <Animated.View style={[styles.card, { ...shadows.card }]} layout={LinearTransition.duration(PICKER_DUR_MS)}>
           <View style={styles.profileRow}>
             <View style={styles.avatarWrap}>
               <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
@@ -88,7 +116,7 @@ export default function SettingsScreen() {
               </View>
               <Pressable
                 style={[styles.editColorBtn, { backgroundColor: colors.brandSurface, borderColor: colors.brandDivider }]}
-                onPress={() => setColorPickerOpen((v) => !v)}
+                onPress={toggleColorPicker}
                 hitSlop={8}
                 accessibilityLabel="Mudar cor do avatar"
               >
@@ -102,7 +130,11 @@ export default function SettingsScreen() {
           </View>
 
           {colorPickerOpen ? (
-            <View style={styles.colorPicker}>
+            <Animated.View
+              style={styles.colorPicker}
+              entering={FadeIn.duration(PICKER_DUR_MS)}
+              exiting={FadeOut.duration(180)}
+            >
               {AVATAR_COLORS.map((color) => (
                 <Pressable
                   key={color}
@@ -115,55 +147,67 @@ export default function SettingsScreen() {
                   accessibilityLabel={`Cor ${color}`}
                 />
               ))}
-            </View>
+            </Animated.View>
           ) : null}
-        </View>
+        </Animated.View>
 
-        {/* Aparência */}
-        <Text style={styles.section}>Aparência</Text>
-        <View style={[styles.card, { ...shadows.card }]}>
-          <View style={styles.themeRow}>
-            <ThemeChoice label="Claro" icon="sunny-outline" active={mode === 'light'} onPress={() => setMode('light')} />
-            <ThemeChoice label="Escuro" icon="moon-outline" active={mode === 'dark'} onPress={() => setMode('dark')} />
+        {/* Aparência — wrapper desliza junto quando o card de cima muda altura. */}
+        <Animated.View layout={LinearTransition.duration(PICKER_DUR_MS)}>
+          <Text style={styles.section}>Aparência</Text>
+          <View style={[styles.card, { ...shadows.card }]}>
+            <View style={styles.themeRow}>
+              <ThemeChoice label="Claro" icon="sunny-outline" active={mode === 'light'} onPress={() => setMode('light')} />
+              <ThemeChoice label="Escuro" icon="moon-outline" active={mode === 'dark'} onPress={() => setMode('dark')} />
+            </View>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Conta */}
-        <Text style={styles.section}>Conta</Text>
-        {isDemo ? (
-          <View style={[styles.menuCard, { ...shadows.card }]}>
-            <MenuItem icon="play-circle-outline" label="Você está na demonstração" onPress={() => {}} colors={colors} styles={styles} />
-          </View>
-        ) : (
-          <View style={[styles.menuCard, { ...shadows.card }]}>
-            <MenuItem icon="key-outline" label="Alterar senha" onPress={() => navigation.navigate('ChangePassword')} colors={colors} styles={styles} />
-            <View style={styles.divider} />
-            <MenuItem icon="swap-horizontal-outline" label="Trocar de conta" onPress={logout} colors={colors} styles={styles} />
-            <View style={styles.divider} />
-            <MenuItem icon="play-circle-outline" label="Ver demonstração" onPress={enterDemo} colors={colors} styles={styles} />
-            <View style={styles.divider} />
-            <MenuItem icon="trash-outline" label="Excluir conta" destructive onPress={openDelete} colors={colors} styles={styles} />
-          </View>
-        )}
+        {/* Conta — wrapper desliza junto. */}
+        <Animated.View layout={LinearTransition.duration(PICKER_DUR_MS)}>
+          <Text style={styles.section}>Conta</Text>
+          {isDemo ? (
+            <View style={[styles.menuCard, { ...shadows.card }]}>
+              <MenuItem icon="play-circle-outline" label="Você está na demonstração" onPress={() => {}} colors={colors} styles={styles} />
+            </View>
+          ) : (
+            <View style={[styles.menuCard, { ...shadows.card }]}>
+              <MenuItem icon="key-outline" label="Alterar senha" onPress={() => navigation.navigate('ChangePassword')} colors={colors} styles={styles} />
+              <View style={styles.divider} />
+              <MenuItem icon="swap-horizontal-outline" label="Trocar de conta" onPress={logout} colors={colors} styles={styles} />
+              <View style={styles.divider} />
+              <MenuItem
+                icon="play-circle-outline"
+                label="Ver demonstração"
+                onPress={(e) => enterDemo(e ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : undefined)}
+                colors={colors}
+                styles={styles}
+              />
+              <View style={styles.divider} />
+              <MenuItem icon="trash-outline" label="Excluir conta" destructive onPress={openDelete} colors={colors} styles={styles} />
+            </View>
+          )}
+        </Animated.View>
 
-        {/* Sair */}
-        {isDemo ? (
-          <Pressable style={styles.logoutBtn} onPress={exitDemo}>
-            <Ionicons name="exit-outline" size={20} color={colors.brandError} />
-            <Text style={styles.logoutText}>Sair da demonstração</Text>
-          </Pressable>
-        ) : (
-          <Pressable style={styles.logoutBtn} onPress={confirmLogout} disabled={loading}>
-            {loading ? (
-              <LoadingDog size={24} color={colors.brandError} />
-            ) : (
-              <>
-                <Ionicons name="log-out-outline" size={20} color={colors.brandError} />
-                <Text style={styles.logoutText}>Sair</Text>
-              </>
-            )}
-          </Pressable>
-        )}
+        {/* Sair — wrapper desliza junto. */}
+        <Animated.View layout={LinearTransition.duration(PICKER_DUR_MS)}>
+          {isDemo ? (
+            <Pressable style={styles.logoutBtn} onPress={confirmExitDemo}>
+              <Ionicons name="exit-outline" size={20} color={colors.brandError} />
+              <Text style={styles.logoutText}>Sair da demonstração</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.logoutBtn} onPress={confirmLogout} disabled={loading}>
+              {loading ? (
+                <LoadingDog size={24} color={colors.brandError} />
+              ) : (
+                <>
+                  <Ionicons name="log-out-outline" size={20} color={colors.brandError} />
+                  <Text style={styles.logoutText}>Sair</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+        </Animated.View>
       </ScrollView>
 
       {/* Sheet excluir conta — BottomSheet (fundo escurece no lugar + arrasta pra fechar) */}
@@ -217,7 +261,7 @@ function MenuItem({
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  onPress: () => void;
+  onPress: (e?: GestureResponderEvent) => void;
   destructive?: boolean;
   colors: any;
   styles: any;
