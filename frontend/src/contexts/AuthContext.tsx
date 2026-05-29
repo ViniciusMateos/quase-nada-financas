@@ -8,6 +8,7 @@ import { tokenStorage } from '@/lib/tokenStorage';
 import {
   getSavedAccounts,
   removeSavedAccount as removeSavedAccountStorage,
+  syncSavedAccountToken,
   updateSavedAccount as updateSavedAccountStorage,
   upsertSavedAccount,
   type SavedAccount,
@@ -125,6 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const tokens = await authService.refresh(account.refreshToken);
       await tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken);
+      // Persiste o token rotacionado na conta salva ANTES de qualquer outra
+      // chamada. O refresh acima já "queimou" o token antigo no backend; se algo
+      // abaixo (ex.: me()) falhar, a conta salva não pode ficar com o token velho
+      // — senão o próximo login rápido dispara a detecção de reuso (403) e cai
+      // pra senha pra sempre.
+      await tokenStorage.setActiveEmail(account.email);
+      await syncSavedAccountToken(account.email, tokens.refreshToken);
       const user = await authService.me();
       await tokenStorage.setActiveEmail(user.email);
       await upsertSavedAccount({
