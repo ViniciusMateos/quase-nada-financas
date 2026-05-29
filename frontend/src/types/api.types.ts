@@ -46,6 +46,9 @@ export type Transaction = {
   amount: number;
   currency?: 'BRL';
   merchantName?: string | null;
+  paymentMethod?: string | null;
+  installmentCurrent?: number | null;
+  installmentTotal?: number | null;
   categoryId?: string | null;
   categoryName?: string | null;
   categoryIcon?: string | null;

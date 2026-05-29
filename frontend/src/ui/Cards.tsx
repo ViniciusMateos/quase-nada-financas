@@ -17,6 +17,11 @@ function extractBankName(accountName?: string | null): string | null {
 export function TransactionCard({ item, onPress, isFirst, isLast }: { item: Transaction; onPress?: () => void; isFirst?: boolean; isLast?: boolean }) {
   const { colors, radius } = useTheme();
   const positive = item.amount > 0;
+  // Badge "1/5" quando é compra parcelada (totalInstallments > 1).
+  const installmentLabel =
+    item.installmentTotal && item.installmentTotal > 1
+      ? `${item.installmentCurrent ?? 1}/${item.installmentTotal}`
+      : null;
   return (
     <Pressable
       onPress={onPress}
@@ -38,7 +43,14 @@ export function TransactionCard({ item, onPress, isFirst, isLast }: { item: Tran
         <CategoryIcon icon={item.categoryIcon} color={item.categoryColor || colors.brandPrimary} size={20} />
       </View>
       <View style={styles.middle}>
-        <Text numberOfLines={1} style={[styles.title, { color: colors.brandTextPrimary }]}>{item.description}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text numberOfLines={1} style={[styles.title, { color: colors.brandTextPrimary, flexShrink: 1 }]}>{item.description}</Text>
+          {installmentLabel ? (
+            <View style={[styles.installmentBadge, { backgroundColor: colors.brandPrimaryTint }]}>
+              <Text style={[styles.installmentText, { color: colors.brandPrimaryDark }]}>{installmentLabel}</Text>
+            </View>
+          ) : null}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <BankIconInline bankName={extractBankName(item.accountName)} size={12} />
           <Text numberOfLines={1} style={[styles.meta, { color: colors.brandTextSecondary, flex: 1 }]}>
@@ -263,6 +275,8 @@ const styles = StyleSheet.create({
   middle: { flex: 1 },
   right: { alignItems: 'flex-end', gap: 4 },
   title: { fontSize: 15, fontWeight: '700' },
+  installmentBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  installmentText: { fontSize: 11, fontWeight: '800' },
   meta: { fontSize: 12 },
   amount: { fontSize: 15, fontWeight: '800' },
   balance: { fontSize: 17, fontWeight: '800' },
