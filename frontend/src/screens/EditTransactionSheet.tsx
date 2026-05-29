@@ -91,7 +91,7 @@ export default function EditTransactionSheet() {
   }
 
   return (
-    <BottomSheet onClose={() => navigation.goBack()}>
+    <BottomSheet onClose={() => navigation.goBack()} liftOnKeyboard={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
         <Text style={[styles.title, { color: colors.brandTextPrimary }]}>Editar transação</Text>
         <Text style={[styles.helper, { color: colors.brandTextSecondary }]}>

@@ -24,11 +24,19 @@ type Props = {
    * quando o BottomSheet for usado como Stack.Screen com presentation:'transparentModal'.
    */
   asNativeModal?: boolean;
+  /**
+   * Quando o conteúdo é um ScrollView com `automaticallyAdjustKeyboardInsets`
+   * (ex.: EditTransactionSheet), passe `false`. Senão o sheet sobe inteiro
+   * pela altura do teclado E o ScrollView ainda ajusta inset — somam e empurram
+   * o topo do form pra fora da tela. Default `true` (sobe o sheet inteiro,
+   * adequado pra formulários curtos como o "Excluir conta").
+   */
+  liftOnKeyboard?: boolean;
 };
 
 const SPRING_CONFIG = { damping: 20, stiffness: 220, mass: 0.7 };
 
-export function BottomSheet({ visible = true, onClose, children, maxHeightFraction = 0.85, asNativeModal = false }: Props) {
+export function BottomSheet({ visible = true, onClose, children, maxHeightFraction = 0.85, asNativeModal = false, liftOnKeyboard = true }: Props) {
   const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -47,7 +55,10 @@ export function BottomSheet({ visible = true, onClose, children, maxHeightFracti
 
   // Empurra o sheet pra cima quando o teclado abre (necessário porque o sheet
   // tem position:absolute, bottom:0 — KeyboardAvoidingView interno não basta).
+  // Pulamos quando `liftOnKeyboard` é false — aí quem trata o teclado é o
+  // ScrollView interno via `automaticallyAdjustKeyboardInsets`.
   useEffect(() => {
+    if (!liftOnKeyboard) return;
     const showSub = Keyboard.addListener('keyboardWillShow', (e) => {
       keyboardOffset.value = withTiming(-e.endCoordinates.height, { duration: 250 });
     });
@@ -58,7 +69,7 @@ export function BottomSheet({ visible = true, onClose, children, maxHeightFracti
       showSub.remove();
       hideSub.remove();
     };
-  }, [keyboardOffset]);
+  }, [keyboardOffset, liftOnKeyboard]);
 
   const close = () => {
     translateY.value = withTiming(sheetMaxHeight, { duration: 220 }, (finished) => {
