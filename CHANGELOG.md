@@ -3,6 +3,35 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [1.2.0] - 2026-05-29
+
+### Added
+
+- Parcelas do cartao projetadas no mes de cobranca: a 1a parcela fica na data
+  da compra e as seguintes no primeiro dia dos meses seguintes. Parcelas
+  futuras so aparecem quando a data chega, e a aba Parcelamentos usa o maior
+  numero de parcela ja vencido pra calcular pago e restante (corrige o caso
+  do Nubank que mostrava 3/12 em vez de 10/12).
+- Badge da parcela (ex: 1/5) ao lado do nome na lista de transacoes.
+- Animacao de entrada no modo demonstracao: circulo verde crescendo a partir
+  do ponto do toque (ripple) com o mascote carregando.
+- Alerta nativo de confirmacao ao sair da demonstracao, no tema do app.
+- Animacao do seletor de cor do avatar nos ajustes, com os blocos abaixo
+  deslizando junto.
+
+### Fixed
+
+- Login rapido por Face ID parava de funcionar (caia pra senha) quando uma
+  falha de rede acontecia entre o refresh e o me(): o token rotacionado agora
+  e persistido logo apos o refresh.
+- Campo de edicao de transacao ficava escondido atras do teclado no bottom
+  sheet.
+
+### Manutencao
+
+- Pendencias do expo doctor resolvidas (eas-cli removido, expo-font adicionado,
+  versoes alinhadas ao SDK 52) e import dinamico liberado no tsc.
+
 ## [1.1.0] - 2026-05-25
 
 ### Added
