@@ -47,7 +47,8 @@ export class DashboardService {
     const monthTxs = await prisma.transaction.findMany({
       where: {
         bankAccount: { connectedAccount: { userId, isInvestment: false } },
-        occurredAt: { gte: start, lt: end },
+        // teto = agora: não conta parcelas projetadas no futuro
+        occurredAt: { gte: start, lt: end, lte: new Date() },
         categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
       },
       select: {
@@ -99,7 +100,11 @@ export class DashboardService {
       .map(([name, total]) => ({ name, total }));
 
     const recentTxRows = await prisma.transaction.findMany({
-      where: { bankAccount: { connectedAccount: { userId, isInvestment: false } } },
+      where: {
+        bankAccount: { connectedAccount: { userId, isInvestment: false } },
+        // não lista parcelas projetadas no futuro como "recentes"
+        occurredAt: { lte: new Date() },
+      },
       orderBy: { occurredAt: "desc" },
       take: 5,
       select: {

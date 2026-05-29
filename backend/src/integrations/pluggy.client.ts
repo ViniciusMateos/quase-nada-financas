@@ -35,7 +35,7 @@ export interface PluggyTransaction {
   description?: string;
   merchant?: { name?: string; mcc?: string };
   paymentData?: { paymentMethod?: string };
-  creditCardMetadata?: { installmentNumber?: number; totalInstallments?: number };
+  creditCardMetadata?: { installmentNumber?: number; totalInstallments?: number; purchaseDate?: string };
 }
 
 export interface PluggyInvestment {

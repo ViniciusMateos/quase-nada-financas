@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database.js";
 import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
+import { stripInstallmentSuffix } from "../transactions/transactions.service.js";
 
 export interface SubscriptionItem {
   key: string;
@@ -221,7 +222,8 @@ export class AnalyticsService {
       where: {
         bankAccount: { connectedAccount: { userId } },
         amount: { lt: 0 },
-        occurredAt: { gte: start, lt: end },
+        // teto = agora: não conta parcelas projetadas no futuro
+        occurredAt: { gte: start, lt: end, lte: new Date() },
         categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
       },
       select: {
@@ -314,17 +316,40 @@ export class AnalyticsService {
     let totalPaid = 0;
     let totalRemaining = 0;
     for (const [, { latest, all }] of groups) {
-      const current = latest.installmentCurrent as number;
       const total = latest.installmentTotal as number;
       const installmentAmount = Math.abs(latest.amount);
+
+      // "Parcela atual" = MAIOR installmentCurrent entre as parcelas já vencidas
+      // (data <= hoje). NÃO é a contagem de linhas no banco: conectores mensais
+      // (Nubank) só mandam as parcelas recentes — o Pier tem só 8,9,10 no banco
+      // mas já está na 10/12. E NÃO é o installmentCurrent máximo cru: pro
+      // Mercado Pago (que manda TODAS as parcelas de uma vez, já espalhadas em
+      // datas futuras pelo ingest), as futuras têm data > hoje e não contam.
+      const now = Date.now();
+      const dueNumbers = all
+        .filter((tx) => tx.occurredAt.getTime() <= now)
+        .map((tx) => tx.installmentCurrent as number);
+      const current = Math.min(Math.max(1, ...dueNumbers), total);
+
       const totalAmount = round(installmentAmount * total);
       const paidAmount = round(installmentAmount * current);
       const remaining = round(installmentAmount * (total - current));
       const progress = total > 0 ? Math.round((current / total) * 100) : 0;
-      const lastDate = new Date(latest.occurredAt);
+
+      // Início (parcela 1): ancora numa parcela conhecida e volta (N-1) meses.
+      // Parcela 1 fica na data real da compra; demais no 1º dia do mês. Assim a
+      // data certa aparece mesmo quando a parcela 1 não está no banco (Pier).
+      const anchor = all.reduce((a, b) => (a.installmentCurrent <= b.installmentCurrent ? a : b));
+      const anchorNum = anchor.installmentCurrent as number;
+      const ad = anchor.occurredAt as Date;
+      const firstDate =
+        anchorNum <= 1
+          ? ad
+          : new Date(Date.UTC(ad.getUTCFullYear(), ad.getUTCMonth() - (anchorNum - 1), 1, 3, 0, 0));
       const monthsLeft = total - current;
-      const estimatedLast = new Date(lastDate);
-      estimatedLast.setMonth(estimatedLast.getMonth() + monthsLeft);
+      const estimatedLast = new Date(
+        Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() + (total - 1), 1, 3, 0, 0)
+      );
 
       const ba = latest.bankAccount;
       const conn = ba?.connectedAccount;
@@ -334,7 +359,7 @@ export class AnalyticsService {
 
       items.push({
         id: latest.id,
-        description: latest.description,
+        description: stripInstallmentSuffix(latest.description),
         alias: latest.alias ?? null,
         merchantName: latest.merchantName,
         installmentCurrent: current,
@@ -344,7 +369,7 @@ export class AnalyticsService {
         paidAmount,
         remainingAmount: remaining,
         progress,
-        occurredAt: latest.occurredAt.toISOString(),
+        occurredAt: firstDate.toISOString(),
         estimatedLastDate: monthsLeft > 0 ? estimatedLast.toISOString() : null,
         accountName,
         categoryId: latest.categoryId ?? null,
@@ -355,9 +380,6 @@ export class AnalyticsService {
       });
       totalPaid += paidAmount;
       totalRemaining += remaining;
-
-      // silence unused-var warning
-      void all;
     }
 
     items.sort((a, b) => b.remainingAmount - a.remainingAmount);

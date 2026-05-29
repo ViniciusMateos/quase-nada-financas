@@ -30,12 +30,14 @@ export class TransactionsRepository {
       // filtrar explicitamente por essa categoria (drill-down).
       where.categoryId = { not: INTERNAL_TRANSFER_CATEGORY_ID };
     }
-    if (q.startDate || q.endDate) {
-      where.occurredAt = {
-        ...(q.startDate ? { gte: q.startDate } : {}),
-        ...(q.endDate ? { lte: q.endDate } : {}),
-      };
-    }
+    // Teto = agora: nunca mostra parcelas projetadas no futuro (só aparecem
+    // quando a data chega). Pega o menor entre o fim do período e agora.
+    const now = new Date();
+    const upperBound = q.endDate && q.endDate < now ? q.endDate : now;
+    where.occurredAt = {
+      ...(q.startDate ? { gte: q.startDate } : {}),
+      lte: upperBound,
+    };
     if (q.cursor) {
       const cursorDate = new Date(q.cursor.occurredAt);
       where.OR = [
@@ -162,12 +164,13 @@ export class TransactionsRepository {
     };
     if (q.accountId) where.bankAccountId = q.accountId;
     else if (q.accountIds && q.accountIds.length > 0) where.bankAccountId = { in: q.accountIds };
-    if (q.startDate || q.endDate) {
-      where.occurredAt = {
-        ...(q.startDate ? { gte: q.startDate } : {}),
-        ...(q.endDate ? { lte: q.endDate } : {}),
-      };
-    }
+    // Teto = agora: o total do mês não conta parcelas projetadas no futuro.
+    const now = new Date();
+    const upperBound = q.endDate && q.endDate < now ? q.endDate : now;
+    where.occurredAt = {
+      ...(q.startDate ? { gte: q.startDate } : {}),
+      lte: upperBound,
+    };
     const [incomeAgg, expenseAgg] = await Promise.all([
       prisma.transaction.aggregate({
         where: { ...where, amount: { gt: 0 } },

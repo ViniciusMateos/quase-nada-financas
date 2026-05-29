@@ -55,7 +55,7 @@ export class TransactionsService {
       accountName: formatBankAccountName(row.bankAccount, row.bankAccount?.connectedAccount),
       accountLogoUrl: row.bankAccount?.connectedAccount?.logoUrl ?? null,
       occurredAt: row.occurredAt.toISOString(),
-      description: row.alias ?? row.description,
+      description: row.alias ?? stripInstallmentSuffix(row.description),
       originalDescription: row.description,
       alias: row.alias,
       amount: row.amount,
@@ -264,7 +264,7 @@ export class TransactionsService {
         merchantName: ptx.merchant?.name ?? null,
         merchantMcc: ptx.merchant?.mcc ?? null,
         paymentMethod: ptx.paymentData?.paymentMethod ?? null,
-        occurredAt: new Date(ptx.date),
+        occurredAt: installmentOccurredAt(ptx),
         installmentCurrent: ptx.creditCardMetadata?.installmentNumber ?? null,
         installmentTotal: ptx.creditCardMetadata?.totalInstallments ?? null,
         categoryId,
@@ -367,6 +367,38 @@ function matchByKeywords(text: string): string | null {
  *   CREDIT → amount positivo (entrada de dinheiro)
  * Se o type não vier, mantém o sinal original.
  */
+/**
+ * Data em que a parcela cai. Alguns conectores (Mercado Pago cartão) mandam
+ * TODAS as N parcelas de uma compra com a MESMA data (a da compra), inflando o
+ * mês. Projetamos cada parcela no mês em que será cobrada:
+ *   - Parcela 1 (ou transação sem parcelamento): data real da compra.
+ *   - Parcela N>1: primeiro dia do mês = (mês da compra) + (N-1) meses.
+ * Assim cada mês mostra só a sua parcela, e a tela de Parcelamentos consegue
+ * dizer quais já passaram (data <= hoje) vs futuras.
+ */
+function installmentOccurredAt(ptx: PluggyTransaction): Date {
+  const meta = ptx.creditCardMetadata;
+  const base = new Date(ptx.date);
+  const total = meta?.totalInstallments;
+  const num = meta?.installmentNumber;
+  if (!total || total <= 1 || !num || num <= 1) return base;
+  const purchase = meta?.purchaseDate ? new Date(meta.purchaseDate) : base;
+  // 03:00 UTC = meia-noite no horário de Brasília (UTC-3). Assim a data exibida
+  // é o dia 1, E a parcela só "passa a valer" (occurredAt <= agora) exatamente
+  // quando vira o dia 1 em Brasília — não antes. Meia-noite UTC apareceria no
+  // último dia do mês anterior em BRT (bug que mostrava a parcela 2 em 31/05).
+  return new Date(Date.UTC(purchase.getUTCFullYear(), purchase.getUTCMonth() + (num - 1), 1, 3, 0, 0));
+}
+
+/**
+ * Remove o sufixo de parcela do nome ("Pier 10/12" → "Pier"). O número da
+ * parcela já aparece no badge "10/12" e no "Parcela X/Y", então no nome é
+ * redundante. Só mexe quando o final é exatamente " N/N".
+ */
+export function stripInstallmentSuffix(desc: string | null | undefined): string {
+  return (desc ?? "").replace(/\s+\d+\s*\/\s*\d+\s*$/, "").trim();
+}
+
 function normalizeAmountSign(ptx: PluggyTransaction & { type?: string }): number {
   const raw = ptx.amount;
   const type = (ptx as any).type;
