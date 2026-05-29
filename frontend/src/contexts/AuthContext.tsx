@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { authService } from '@/services/auth.service';
 import { authEvents } from '@/lib/authEvents';
+import { uiEvents } from '@/lib/uiEvents';
 import { demoMode } from '@/lib/demoMode';
 import { demoStore } from '@/demo/demoStore';
 import { DEMO_USER } from '@/demo/demoData';
@@ -27,8 +28,12 @@ type AuthContextValue = State & {
   deleteAccount(password: string): Promise<void>;
   logout(): Promise<void>;
   bootstrap(): Promise<void>;
-  /** Entra no modo demonstração com dados fictícios (sem token, sem rede). */
-  enterDemo(): void;
+  /** Dispara a animação de entrada na demo (preenchimento verde + cachorro).
+   *  Opcionalmente recebe a posição do toque (pageX/pageY) pra o círculo
+   *  crescer a partir dali (efeito ripple). */
+  enterDemo(origin?: { x: number; y: number }): void;
+  /** Troca de fato pro modo demo. Chamado pelo overlay no meio da animação. */
+  commitDemo(): void;
   /** Sai do demo e restaura a sessão real (se houver) ou volta pro hub. */
   exitDemo(): Promise<void>;
 };
@@ -64,10 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearSession]);
 
-  const enterDemo = useCallback(() => {
+  // Faz a troca de fato pro modo demo. Chamado pelo overlay de transição com a
+  // tela já coberta de verde, pra a mudança de navegação não aparecer "seca".
+  const commitDemo = useCallback(() => {
     demoStore.reset();
     demoMode.set(true);
     dispatch({ user: DEMO_USER, isDemo: true, booting: false, loading: false });
+  }, []);
+
+  // Só dispara a animação de entrada; o overlay (App.tsx) roda o preenchimento
+  // verde + cachorro e chama commitDemo no momento certo. O `origin` (opcional)
+  // é a posição do toque pra o círculo crescer a partir dali — sem ele, expande
+  // do centro da tela (caso do Ajustes, cujo MenuItem não repassa o evento).
+  const enterDemo = useCallback((origin?: { x: number; y: number }) => {
+    uiEvents.triggerDemoEnter(origin);
   }, []);
 
   const exitDemo = useCallback(async () => {
@@ -214,8 +229,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.user, state.isDemo]);
 
   const value = useMemo(
-    () => ({ ...state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, exitDemo }),
-    [state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, exitDemo]
+    () => ({ ...state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, commitDemo, exitDemo }),
+    [state, savedAccounts, login, register, loginWithSavedAccount, removeSavedAccount, updateSavedAccount, changePassword, deleteAccount, logout, bootstrap, enterDemo, commitDemo, exitDemo]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

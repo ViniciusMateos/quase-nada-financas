@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import DashboardScreen from '@/screens/DashboardScreen';
 import AccountsScreen from '@/screens/AccountsScreen';
@@ -17,6 +18,10 @@ const Tab = createBottomTabNavigator();
 export function AppTabs() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { isDemo } = useAuth();
+  // No modo demo a faixa do topo já consome o safe-area (notch); recontar o
+  // insets.top aqui criava um espaço duplo entre a faixa e as abas.
+  const topInset = (isDemo ? 0 : insets.top) + 8;
   return (
     <Tab.Navigator
       screenOptions={{
@@ -24,7 +29,7 @@ export function AppTabs() {
         tabBarPosition: 'top',
         sceneStyle: { backgroundColor: colors.brandBackground },
       }}
-      tabBar={(props) => <TopTabBar {...props} topInset={insets.top + 8} />}
+      tabBar={(props) => <TopTabBar {...props} topInset={topInset} />}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Transacoes" component={TransactionsScreen} />

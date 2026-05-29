@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { AppLockGate } from '@/ui/AppLockGate';
 import { DemoBanner } from '@/ui/DemoBanner';
+import { DemoEnterOverlay } from '@/ui/DemoEnterOverlay';
 import { LoadingDog } from '@/ui/LoadingDog';
 
 function AppShell() {
@@ -27,6 +28,7 @@ function AppShell() {
             <View style={{ flex: 1 }}>
               <DemoBanner />
               <RootNavigator />
+              <DemoEnterOverlay />
             </View>
           </AppLockGate>
         </Suspense>
