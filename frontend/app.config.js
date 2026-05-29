@@ -99,7 +99,9 @@ module.exports = {
         {
           faceIDPermission: 'Use o Face ID para confirmar ordens financeiras.'
         }
-      ]
+      ],
+      'expo-font',
+      'expo-asset'
     ],
     extra
   }
