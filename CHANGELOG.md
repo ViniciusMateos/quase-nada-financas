@@ -3,6 +3,17 @@
 Todas as mudancas notaveis deste projeto sao documentadas aqui.
 O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Deteccao de banco do Pluggy expandida pra usar aliases conhecidos
+  (Nubank/Nu Pagamentos, Itau, Bradesco, Inter, C6, PicPay, Mercado Pago,
+  Banco do Brasil, Caixa, PagBank, BTG, XP, Safra, Santander). Agora
+  `effectiveLogoUrl`, `effectivePrimaryColor`, `inlineLogoUrl` e o flag
+  `isBrand` no Dashboard casam tanto pelo `customName` quanto pelo
+  `bankName` original do connector. Inter tambem entrou no `PADDED_FILL`.
+
 ## [1.2.0] - 2026-05-29
 
 ### Added
