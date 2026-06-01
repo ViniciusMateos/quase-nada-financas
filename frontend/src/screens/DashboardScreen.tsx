@@ -10,7 +10,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useDashboard } from '@/hooks/useDashboard';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useFocusRefresh } from '@/hooks/useFocusRefresh';
-import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
+import { detectBankKey, effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { normalizeError } from '@/lib/errorMap';
 import { accountsService } from '@/services/accounts.service';
@@ -143,7 +143,7 @@ export default function DashboardScreen() {
             balance: displayBalance,
             logoUrl: logo,
             primaryColor: tint,
-            isBrand: !!acc.customName,
+            isBrand: !!(detectBankKey(acc.customName) ?? detectBankKey(acc.bankName)),
             creditCloseDay: isCredit ? ba.creditCloseDay ?? null : undefined,
           },
         });

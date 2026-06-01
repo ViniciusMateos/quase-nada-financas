@@ -35,6 +35,7 @@ function toRenderableImageUrl(url: string, size: number): string {
 const PADDED_FILL: RegExp[] = [
   /mercado pago/i,
   /\bxp\b/i,
+  /\binter\b/i,
 ];
 
 const BANK_COLORS: Array<{ match: RegExp; bg: string; fg: string; initials?: string }> = [

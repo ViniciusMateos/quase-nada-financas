@@ -2,7 +2,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { useTheme } from '@/contexts/ThemeContext';
-import { effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
+import { detectBankKey, effectiveLogoUrl, effectivePrimaryColor } from '@/lib/bankAccountLabel';
 import { BankBadge } from '@/ui/BankBadge';
 import { BankIconInline } from '@/ui/BankIconInline';
 import { CategoryIcon } from '@/ui/CategoryIcon';
@@ -118,7 +118,7 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
         ]}
       >
         <View style={styles.cardIconWrap}>
-          <BankBadge bankName={displayName} logoUrl={effectiveLogoUrl(account)} primaryColor={effectivePrimaryColor(account)} size={48} variant={account.customName ? 'filled' : 'padded'} />
+          <BankBadge bankName={displayName} logoUrl={effectiveLogoUrl(account)} primaryColor={effectivePrimaryColor(account)} size={48} variant={detectBankKey(account.customName) ?? detectBankKey(account.bankName) ? 'filled' : 'padded'} />
         </View>
         <View style={styles.middle}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

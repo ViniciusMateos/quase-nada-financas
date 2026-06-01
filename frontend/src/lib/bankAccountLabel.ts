@@ -71,28 +71,64 @@ const BANK_LOGOS: Record<string, { filled: string; inline: string }> = {
   },
 };
 
+// Aliases comuns vindos do Pluggy ("Nu Pagamentos S/A", "Banco Inter S/A"...)
+// mapeados pra chave canônica em BANK_LOGOS.
+const NAME_ALIASES: Array<{ match: RegExp; key: string }> = [
+  { match: /nu pagamentos|nubank/i, key: 'Nubank' },
+  { match: /mercado pago/i, key: 'Mercado Pago' },
+  { match: /ita[uú]/i, key: 'Itaú' },
+  { match: /bradesco/i, key: 'Bradesco' },
+  { match: /santander/i, key: 'Santander' },
+  { match: /banco do brasil|\bbb\b/i, key: 'Banco do Brasil' },
+  { match: /caixa/i, key: 'Caixa' },
+  { match: /\binter\b/i, key: 'Inter' },
+  { match: /\bc6\b/i, key: 'C6' },
+  { match: /pic ?pay/i, key: 'PicPay' },
+  { match: /pag ?bank|pagseguro/i, key: 'PagBank' },
+  { match: /btg/i, key: 'BTG Pactual' },
+  { match: /\bxp\b/i, key: 'XP' },
+  { match: /safra/i, key: 'Safra' },
+];
+
+/**
+ * Identifica a chave canônica em BANK_LOGOS a partir de um nome qualquer
+ * (customName escolhido pelo usuário ou bankName vindo do Pluggy).
+ * Retorna null se o banco não estiver mapeado.
+ */
+export function detectBankKey(name: string | null | undefined): string | null {
+  if (!name) return null;
+  if (BANK_LOGOS[name]) return name;
+  for (const { match, key } of NAME_ALIASES) {
+    if (match.test(name)) return key;
+  }
+  return null;
+}
+
 /**
  * Logo "cheio" (com fundo colorido do banco) — pra bolinha grande nas telas
- * de Contas e Início. Quando o banco não é reconhecido, retorna o logo
- * original do connector Pluggy (ou null, deixando BankBadge usar iniciais).
+ * de Contas e Início. Auto-detecta pelo customName OU bankName; só cai pro
+ * logo do connector Pluggy se nenhum dos dois bater no mapping.
  */
-export function effectiveLogoUrl(acc: Pick<Account, 'customName' | 'logoUrl'>): string | null | undefined {
-  if (acc.customName) return BANK_LOGOS[acc.customName]?.filled ?? null;
+export function effectiveLogoUrl(acc: Pick<Account, 'customName' | 'bankName' | 'logoUrl'>): string | null | undefined {
+  const key = detectBankKey(acc.customName) ?? detectBankKey(acc.bankName);
+  if (key) return BANK_LOGOS[key].filled;
   return acc.logoUrl;
 }
 
 /** Logo pequeno transparente — pra linhas de transação ao lado da conta. */
 export function inlineLogoUrl(name: string | null | undefined): string | null {
-  if (!name) return null;
-  return BANK_LOGOS[name]?.inline ?? null;
+  const key = detectBankKey(name);
+  if (!key) return null;
+  return BANK_LOGOS[key].inline;
 }
 
 /**
  * Quando o logo já tem fundo próprio (ex: Nubank roxo), não queremos pintar
- * a bolinha externa com a cor do connector também. Suprime primaryColor.
+ * a bolinha externa com a cor do connector também. Suprime primaryColor
+ * sempre que reconhecemos o banco (custom ou Pluggy).
  */
-export function effectivePrimaryColor(acc: Pick<Account, 'customName' | 'primaryColor'>): string | null | undefined {
-  if (acc.customName) return null;
+export function effectivePrimaryColor(acc: Pick<Account, 'customName' | 'bankName' | 'primaryColor'>): string | null | undefined {
+  if (detectBankKey(acc.customName) ?? detectBankKey(acc.bankName)) return null;
   return acc.primaryColor;
 }
 
