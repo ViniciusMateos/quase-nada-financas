@@ -5,6 +5,8 @@ O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-31
+
 ### Changed
 
 - Deteccao de banco do Pluggy expandida pra usar aliases conhecidos
