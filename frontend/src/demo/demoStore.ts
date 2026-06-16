@@ -54,6 +54,10 @@ let transactions: DemoTransaction[] = [];
 let accounts: Account[] = [];
 let rules: InvestmentRule[] = [];
 let pending: InvestmentPendingAction[] = [];
+// Cor do avatar escolhida nos Ajustes durante a demo. Não há conta salva pra
+// persistir (DEMO_USER é sintético), então guardamos aqui pela sessão; some no
+// reset (entrar/sair da demo).
+let avatarColor: string | null = null;
 
 export const demoStore = {
   /** Recria todos os dados do zero (estado limpo a cada sessão de demo). */
@@ -62,6 +66,14 @@ export const demoStore = {
     accounts = buildDemoAccounts();
     rules = buildDemoRules();
     pending = buildDemoPending();
+    avatarColor = null;
+  },
+  /** Cor do avatar da demo (null = usa o default do tema). */
+  getAvatarColor() {
+    return avatarColor;
+  },
+  setAvatarColor(color: string) {
+    avatarColor = color;
   },
 };
 

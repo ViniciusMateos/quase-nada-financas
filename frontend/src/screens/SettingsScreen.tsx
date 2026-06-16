@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { demoStore } from '@/demo/demoStore';
 import { normalizeError } from '@/lib/errorMap';
 import { BottomSheet } from '@/ui/BottomSheet';
 import { LoadingDog } from '@/ui/LoadingDog';
@@ -37,9 +38,15 @@ export default function SettingsScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const currentAccount = savedAccounts.find((a) => a.email === user?.email);
-  const avatarColor = currentAccount?.color || colors.brandPrimaryDark;
 
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  // Em demo não há conta salva pra guardar a cor; mantemos na sessão (demoStore)
+  // e num state local pra forçar o re-render ao escolher.
+  const [demoColor, setDemoColor] = useState<string | null>(() => (isDemo ? demoStore.getAvatarColor() : null));
+
+  const avatarColor = isDemo
+    ? demoColor || colors.brandPrimaryDark
+    : currentAccount?.color || colors.brandPrimaryDark;
 
   // Modal de exclusão de conta
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -56,7 +63,12 @@ export default function SettingsScreen() {
   }
 
   function pickColor(color: string) {
-    if (user?.email) updateSavedAccount(user.email, { color });
+    if (isDemo) {
+      demoStore.setAvatarColor(color);
+      setDemoColor(color);
+    } else if (user?.email) {
+      updateSavedAccount(user.email, { color });
+    }
     setColorPickerOpen(false);
   }
 
