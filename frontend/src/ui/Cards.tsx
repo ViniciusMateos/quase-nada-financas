@@ -68,6 +68,14 @@ export function TransactionCard({ item, onPress, isFirst, isLast }: { item: Tran
   );
 }
 
+/** "MASTERCARD" → "Mastercard". Retorna null quando não há bandeira. */
+function formatBrand(brand?: string | null): string | null {
+  if (!brand) return null;
+  const b = brand.trim();
+  if (!b) return null;
+  return b.charAt(0).toUpperCase() + b.slice(1).toLowerCase();
+}
+
 function bankAccountShortLabel(ba: { type?: string; subtype?: string | null; marketingName?: string | null; name?: string | null }): string {
   if (ba.type === 'CREDIT') return 'Cartão';
   switch (ba.subtype) {
@@ -94,15 +102,29 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
   // Consolida sub-contas com o mesmo rótulo (ex: corretora com 2 "Conta corrente"
   // vira uma só, somando os saldos).
   const mergedSubRows = (() => {
-    const map = new Map<string, { key: string; label: string; isCredit: boolean; value: number }>();
+    type Row = { key: string; label: string; isCredit: boolean; value: number; dueDate?: string | null; total?: number };
+    const map = new Map<string, Row>();
     for (const ba of subAccounts) {
       const isCredit = ba.type === 'CREDIT';
-      const suffix = isCredit && ba.number ? ` ·${String(ba.number).slice(-4)}` : '';
-      const label = bankAccountShortLabel(ba) + suffix;
+      // Cartão: sem número, só a bandeira (Mastercard/Visa...) quando houver.
+      const brand = isCredit ? formatBrand(ba.creditBrand) : null;
+      const label = bankAccountShortLabel(ba) + (brand ? ` · ${brand}` : '');
+      // Valor exibido no cartão = fatura a pagar (a que fechou).
       const value = isCredit ? ba.currentStatementAmount ?? ba.balance : ba.balance;
       const existing = map.get(label);
-      if (existing) existing.value += value;
-      else map.set(label, { key: label, label, isCredit, value });
+      if (existing) {
+        existing.value += value;
+        if (isCredit) existing.total = (existing.total ?? 0) + ba.balance;
+      } else {
+        map.set(label, {
+          key: label,
+          label,
+          isCredit,
+          value,
+          dueDate: isCredit ? ba.statementDueDate ?? null : undefined,
+          total: isCredit ? ba.balance : undefined,
+        });
+      }
     }
     return [...map.values()];
   })();
@@ -134,8 +156,8 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
             <Pressable
               onPress={() =>
                 Alert.alert(
-                  'Fatura estimada',
-                  'Valores marcados como "fatura estimada" são calculados pela soma das transações do ciclo de faturamento atual. Como o banco geralmente não retorna o valor exato da fatura aberta antes do vencimento, essa informação é parcial e pode não refletir o total final.\n\nPra melhorar a precisão, configure o "dia de fechamento" do cartão no Dashboard.',
+                  'Fatura a pagar',
+                  'É a fatura que já fechou (soma das compras do ciclo entre o último fechamento e o anterior), ou seja, o valor a pagar no vencimento. O "total" mostrado é o saldo devedor completo do cartão, incluindo parcelas futuras.\n\nConfigure o dia de fechamento e de vencimento do cartão no Dashboard pra deixar o cálculo e os lembretes certinhos.',
                   [{ text: 'Entendi' }]
                 )
               }
@@ -171,10 +193,23 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
           <View style={[styles.subDot, { backgroundColor: row.isCredit ? colors.brandTextNegative : colors.brandPrimaryDark }]} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>{row.label}</Text>
+            {row.isCredit && (row.dueDate || (row.total != null && row.total > 0)) ? (
+              <Text style={[styles.subMeta, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                {[
+                  row.dueDate ? `vence ${formatDate(row.dueDate)}` : null,
+                  row.total != null && row.total > 0 ? `total ${formatCurrency(row.total)}` : null,
+                ].filter(Boolean).join(' • ')}
+              </Text>
+            ) : null}
           </View>
-          <Text style={[styles.subBalance, { color: row.isCredit ? colors.brandTextNegative : colors.brandTextPrimary }]}>
-            {formatCurrency(row.value)}
-          </Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[styles.subBalance, { color: row.isCredit ? colors.brandTextNegative : colors.brandTextPrimary }]}>
+              {formatCurrency(row.value)}
+            </Text>
+            {row.isCredit ? (
+              <Text style={[styles.subMeta, { color: colors.brandTextSecondary }]}>fatura</Text>
+            ) : null}
+          </View>
         </Pressable>
       ))}
 

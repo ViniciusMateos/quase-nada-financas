@@ -37,6 +37,9 @@ export class AccountsRepository {
     lastSyncAt: Date;
     creditCloseDate?: Date | null;
     creditDueDate?: Date | null;
+    minimumPayment?: number | null;
+    creditLimit?: number | null;
+    creditBrand?: string | null;
   }): Promise<BankAccount> {
     return prisma.bankAccount.upsert({
       where: {
@@ -56,8 +59,19 @@ export class AccountsRepository {
         lastSyncAt: data.lastSyncAt,
         creditCloseDate: data.creditCloseDate ?? null,
         creditDueDate: data.creditDueDate ?? null,
+        minimumPayment: data.minimumPayment ?? null,
+        creditLimit: data.creditLimit ?? null,
+        creditBrand: data.creditBrand ?? null,
+        // creditCloseDay e creditDueDay são do usuário — nunca sobrescritos no sync.
       },
       create: data,
+    });
+  }
+
+  setBankAccountCreditDueDay(id: string, creditDueDay: number | null): Promise<BankAccount> {
+    return prisma.bankAccount.update({
+      where: { id },
+      data: { creditDueDay },
     });
   }
 

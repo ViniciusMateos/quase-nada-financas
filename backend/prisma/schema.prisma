@@ -96,6 +96,14 @@ model BankAccount {
   // usuário quando o Pluggy/banco não envia creditData confiável (ex: Mercado Pago).
   // Quando setado, tem prioridade sobre creditCloseDate no cálculo da fatura aberta.
   creditCloseDay     Int?
+  // Dia do mês (1-31) em que a fatura VENCE. Usado pra derivar o vencimento e
+  // disparar os lembretes de pagamento, já que o balanceDueDate da Pluggy às
+  // vezes vem um ciclo atrasado. Configurável pelo usuário.
+  creditDueDay       Int?
+  // Snapshot do creditData da Pluggy (cartão), pra exibir e notificar.
+  minimumPayment     Float?
+  creditLimit        Float?
+  creditBrand        String?
   connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
   transactions       Transaction[]
 

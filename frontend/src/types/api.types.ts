@@ -15,10 +15,25 @@ export type BankAccount = {
   balance: number;
   currency: 'BRL';
   lastSyncAt: string | null;
-  /** Fatura atual aberta (só preenchido pra type='CREDIT'). Calculado no backend. */
+  /** Fatura a pagar (a que fechou). Espelha statementClosedAmount. Calculado no backend. */
   currentStatementAmount?: number;
+  /** Fatura que fechou e está a pagar (só com creditCloseDay configurado). */
+  statementClosedAmount?: number;
+  /** Fatura nova, ainda acumulando (desde o último fechamento). */
+  statementOpenAmount?: number;
+  /** Vencimento (ISO) da fatura fechada, derivado do creditDueDay. */
+  statementDueDate?: string | null;
+  /** Saldo devedor total do cartão (vem do Pluggy). */
   /** Dia do mês (1-31) em que a fatura fecha. Setado manualmente pelo user. */
   creditCloseDay?: number | null;
+  /** Dia do mês (1-31) em que a fatura vence. Setado manualmente pelo user. */
+  creditDueDay?: number | null;
+  /** Pagamento mínimo da fatura (Pluggy). */
+  minimumPayment?: number | null;
+  /** Limite total do cartão (Pluggy). */
+  creditLimit?: number | null;
+  /** Bandeira do cartão: MASTERCARD, VISA, ELO... (Pluggy). */
+  creditBrand?: string | null;
 };
 export type Account = {
   id: string;

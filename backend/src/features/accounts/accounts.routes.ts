@@ -72,6 +72,23 @@ export async function accountsRoutes(app: FastifyInstance): Promise<void> {
     handler: controller.setCreditCloseDay,
   });
 
+  app.patch("/bank-account/:bankAccountId/credit-due-day", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["bankAccountId"],
+        properties: { bankAccountId: { type: "string", format: "uuid" } },
+      },
+      body: {
+        type: "object",
+        required: ["creditDueDay"],
+        properties: { creditDueDay: { type: ["integer", "null"], minimum: 1, maximum: 31 } },
+        additionalProperties: false,
+      },
+    },
+    handler: controller.setCreditDueDay,
+  });
+
   // Pluggy sub-routes
   app.post("/../pluggy/connect-token", { handler: controller.pluggyConnectToken });
 
