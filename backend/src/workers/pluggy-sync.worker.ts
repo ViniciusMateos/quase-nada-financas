@@ -146,6 +146,109 @@ async function runWeeklySummary(): Promise<void> {
   }
 }
 
+// ---- Lembretes de fatura de cartão: 1x/dia às 10h BRT ----
+
+/** min(day, dias do mês de `ref`) — evita dia 31 em mês de 30. */
+function clampDayToMonth(day: number, ref: Date): number {
+  const days = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() + 1, 0)).getUTCDate();
+  return Math.min(day, days);
+}
+
+function formatDayMonth(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Envia uma push só uma vez (dedup por chave no Redis, TTL 3 dias). */
+async function sendPushOnce(
+  key: string,
+  userId: string,
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<void> {
+  const already = await redis.get(key);
+  if (already) return;
+  await redis.set(key, "1", "EX", 3 * 86_400);
+  await sendPushToUser(userId, title, body, data);
+}
+
+/**
+ * Lembretes de fatura por cartão: quando a fatura FECHA (com o total
+ * aproximado), 1 dia antes do vencimento e no dia do vencimento. Roda 1x/dia
+ * às 10h BRT; dedup por cartão+ciclo no Redis.
+ */
+async function runCreditCardReminders(): Promise<void> {
+  try {
+    const now = new Date();
+    const brt = new Date(now.getTime() - 3 * 3_600_000);
+    if (brt.getUTCHours() !== 10) return;
+
+    const todayDay = brt.getUTCDate();
+    const tomorrow = new Date(brt.getTime() + 86_400_000);
+    const tomorrowDay = tomorrow.getUTCDate();
+    const ym = `${brt.getUTCFullYear()}-${brt.getUTCMonth() + 1}`;
+
+    const users = await prisma.user.findMany({
+      where: { pushToken: { not: null } },
+      select: { id: true },
+    });
+
+    for (const u of users) {
+      try {
+        const accounts = await accountsService.listAccounts(u.id, false);
+        for (const acc of accounts) {
+          const name = acc.customName || acc.bankName;
+          for (const ba of acc.bankAccounts) {
+            if (ba.type !== "CREDIT") continue;
+            const amount = ba.statementClosedAmount ?? ba.currentStatementAmount ?? 0;
+            const dueLabel = formatDayMonth(ba.statementDueDate);
+
+            // Fatura fechou hoje → total aproximado.
+            if (ba.creditCloseDay && todayDay === clampDayToMonth(ba.creditCloseDay, brt) && amount > 0) {
+              await sendPushOnce(
+                `cc-close:${ba.id}:${ym}`,
+                u.id,
+                "Fatura fechou 📄",
+                `A fatura do ${name} fechou em aproximadamente ${formatBrlValue(amount)}${dueLabel ? `. Vence ${dueLabel}` : ""}.`,
+                { type: "credit_card_closed", bankAccountId: ba.id }
+              );
+            }
+
+            if (ba.creditDueDay && amount > 0) {
+              // 1 dia antes (amanhã é o vencimento) — usa o mês de amanhã pra acertar virada de mês.
+              if (tomorrowDay === clampDayToMonth(ba.creditDueDay, tomorrow)) {
+                await sendPushOnce(
+                  `cc-due1:${ba.id}:${ym}`,
+                  u.id,
+                  "Fatura vence amanhã ⏰",
+                  `A fatura do ${name} (${formatBrlValue(amount)}) vence amanhã${dueLabel ? `, ${dueLabel}` : ""}. Não esquece!`,
+                  { type: "credit_card_due_tomorrow", bankAccountId: ba.id }
+                );
+              }
+              // No dia do vencimento.
+              if (todayDay === clampDayToMonth(ba.creditDueDay, brt)) {
+                await sendPushOnce(
+                  `cc-due0:${ba.id}:${ym}`,
+                  u.id,
+                  "Fatura vence hoje 🔔",
+                  `Hoje é o vencimento da fatura do ${name}: ${formatBrlValue(amount)}.`,
+                  { type: "credit_card_due_today", bankAccountId: ba.id }
+                );
+              }
+            }
+          }
+        }
+      } catch (err) {
+        logger.error({ err, userId: u.id }, "Erro nos lembretes de fatura do usuário");
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "Credit card reminders error");
+  }
+}
+
 function getWeekNumber(d: Date): number {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -157,9 +260,11 @@ function getWeekNumber(d: Date): number {
 // Roda no boot e a cada hora
 void runScheduledFires();
 void runWeeklySummary();
+void runCreditCardReminders();
 const fireHandle = setInterval(() => {
   void runScheduledFires();
   void runWeeklySummary();
+  void runCreditCardReminders();
 }, 60 * 60 * 1000);
 
 // Expira pending a cada 10 min
