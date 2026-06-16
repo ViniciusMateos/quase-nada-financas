@@ -21,8 +21,11 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
   regras do usuario, MCC e keyword matching.
 - Detecção de assinaturas recorrentes (mensal/anual) com projecao de gasto.
 - Parcelamentos projetados no mes de cobranca (1a parcela na compra, demais no 1o dia dos meses seguintes): progresso, valor pago, restante e data estimada da ultima parcela, com badge da parcela (ex: 1/5) na lista de transacoes.
-- Estimativa de fatura aberta do cartao em 3 camadas (dia de fechamento
-  configuravel manualmente, ultimo pagamento, balance da Pluggy).
+- Fatura do cartao separando a que JA fechou (valor a pagar no vencimento) da
+  aberta (ainda acumulando), com vencimento derivado do dia de vencimento
+  configuravel e snapshot do Pluggy (pagamento minimo, limite e bandeira).
+  Sem dia de fechamento configurado, cai no fallback (ultimo pagamento ou
+  balance da Pluggy).
 - Atualizacao automatica entre telas via `DataRefreshContext` —
   conectou conta, sincronizou, editou transacao? Outras telas
   refazem fetch sozinhas, sem reiniciar app.
@@ -32,6 +35,8 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 - Corretora fica fora do saldo e das transacoes (dinheiro aplicado nao e saldo disponivel).
 - Detecta o aporte real na corretora e fecha a regra de investimento sozinho.
 - Resumo semanal (entradas, saidas, saldo e top categorias) com push toda segunda.
+- Lembretes de fatura do cartao via push: quando a fatura fecha, na vespera e no
+  dia do vencimento (dedup por cartao/ciclo).
 - Notificacoes push via Expo (ordens executadas, resumo semanal).
 - Loading com mascote (cachorro girando) em todo o app.
 - Modo demonstracao com dados ficticios (sem rede nem biometria), com animacao de entrada (ripple a partir do toque) e alerta nativo de confirmacao ao sair.
