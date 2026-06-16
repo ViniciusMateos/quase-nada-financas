@@ -22,8 +22,11 @@ const BANK_LOGOS: Record<string, { filled: string; inline: string }> = {
     inline: `${RAW}/Mercado%20Pago/mercado-pago.svg`,
   },
   'Itaú': {
-    filled: `${RAW}/Ita%C3%BA%20Unibanco%20S.A/itau-fundo-azul.svg`,
-    inline: `${RAW}/Ita%C3%BA%20Unibanco%20S.A/itau.svg`,
+    // Logo nova (squircle laranja com letras brancas, cantos transparentes).
+    // A antiga `itau.svg` vinha com um quadrado branco de fundo que ficava feio
+    // no tema escuro; esta é self-contained e limpa em claro/escuro.
+    filled: `${RAW}/Ita%C3%BA%20Unibanco%20S.A/logo-nova-letras-brancas.svg`,
+    inline: `${RAW}/Ita%C3%BA%20Unibanco%20S.A/logo-nova-letras-brancas.svg`,
   },
   'Bradesco': {
     filled: `${RAW}/Bradesco%20S.A/bradesco.svg`,
