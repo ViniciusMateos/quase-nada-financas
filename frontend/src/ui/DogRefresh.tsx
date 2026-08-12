@@ -3,17 +3,21 @@ import { Animated, Easing, RefreshControl } from 'react-native';
 import { LoadingDog } from '@/ui/LoadingDog';
 import { useTheme } from '@/contexts/ThemeContext';
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 48;
 
 /**
- * RefreshControl com o spinner nativo escondido (tint transparente). O feedback
- * é o <DogRefreshHeader/> — um cachorro no topo do conteúdo que empurra o resto
- * pra baixo, igual ao indicador nativo, mas com o mascote.
+ * RefreshControl usado só como GATILHO da pull-to-refresh. Mantemos
+ * `refreshing={false}` de propósito: o controle nativo, mesmo com tint
+ * transparente, reserva ~60px de inset enquanto `refreshing=true` — o que
+ * criava um gap invisível gigante ACIMA do cachorro (nativo + dog empilhados).
+ * Como o gesto de puxar dispara `onRefresh` independente do valor de
+ * `refreshing`, deixamos o nativo sem "segurar" e o único indicador é o
+ * <DogRefreshHeader/>. Sem gap fantasma.
  */
-export function dogRefreshControl(refreshing: boolean, onRefresh: () => void) {
+export function dogRefreshControl(_refreshing: boolean, onRefresh: () => void) {
   return (
     <RefreshControl
-      refreshing={refreshing}
+      refreshing={false}
       onRefresh={onRefresh}
       tintColor="transparent"
       colors={['transparent']}

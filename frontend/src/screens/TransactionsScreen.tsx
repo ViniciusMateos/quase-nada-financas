@@ -8,7 +8,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
-import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useForegroundRefresh } from '@/hooks/useForegroundRefresh';
 import { useTheme } from '@/contexts/ThemeContext';
 import { formatCurrency } from '@/lib/formatters';
@@ -33,7 +32,9 @@ export default function TransactionsScreen() {
   const { items, loading, loadingMore, error, reload, loadMore, setFilters } = useTransactions({});
   const { items: accounts } = useAccounts();
 
-  useFocusRefresh(reload);
+  // Sem reload no foco: voltar de uma transação NÃO recarrega a lista (mantém
+  // scroll e paginação). Mutações reais (editar/sincronizar) já refetcham via
+  // DataRefreshContext.bump(); frescor também vem do pull-to-refresh e foreground.
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
