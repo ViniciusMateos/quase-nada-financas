@@ -14,7 +14,9 @@ module.exports = function (api) {
           extensions: ['.ios.ts', '.android.ts', '.ts', '.tsx', '.js', '.jsx', '.json']
         }
       ],
-      'react-native-reanimated/plugin'
+      // Reanimated 4: o plugin de worklets substitui o antigo
+      // 'react-native-reanimated/plugin'. Deve ser o ÚLTIMO plugin da lista.
+      'react-native-worklets/plugin'
     ]
   };
 };

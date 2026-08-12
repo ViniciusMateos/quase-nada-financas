@@ -56,7 +56,7 @@ export default function AccountsScreen() {
           { text: 'Cancelar', style: 'cancel' },
           {
             text: 'Salvar',
-            onPress: (text) => {
+            onPress: (text?: string) => {
               const next = (text ?? '').trim();
               rename(accountId, next || null).catch((err) => Alert.alert('Erro', String(err)));
             },

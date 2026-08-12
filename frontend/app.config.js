@@ -55,6 +55,10 @@ module.exports = {
     name: current.name,
     slug: 'quase-nada-financas',
     version: '1.0.0',
+    // OTA (expo-updates): JS vai via `eas update --branch preview` sem novo build.
+    // runtimeVersion fixo — só muda quando há alteração NATIVA (nova build).
+    runtimeVersion: '1.0.0',
+    updates: { url: 'https://u.expo.dev/efcaf77a-c0c2-423a-9e53-fd9d06ccf6f5' },
     orientation: 'portrait',
     scheme: current.scheme,
     userInterfaceStyle: 'light',
@@ -101,7 +105,9 @@ module.exports = {
         }
       ],
       'expo-font',
-      'expo-asset'
+      'expo-asset',
+      'expo-web-browser',
+      'expo-mail-composer'
     ],
     extra
   }

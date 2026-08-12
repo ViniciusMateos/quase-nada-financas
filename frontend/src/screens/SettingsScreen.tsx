@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { demoStore } from '@/demo/demoStore';
+import { OTA_VERSION, rodandoDeUpdate } from '@/constants/otaVersion';
 import { normalizeError } from '@/lib/errorMap';
 import { BottomSheet } from '@/ui/BottomSheet';
 import { LoadingDog } from '@/ui/LoadingDog';
@@ -220,6 +221,14 @@ export default function SettingsScreen() {
             </Pressable>
           )}
         </Animated.View>
+
+        {/* Rodapé OTA — prova de que o bundle novo baixou (sobe +1 a cada eas update). */}
+        <View style={styles.otaFooter}>
+          <Ionicons name="cloud-done-outline" size={13} color={colors.brandTextSecondary} />
+          <Text style={styles.otaText}>
+            OTA #{OTA_VERSION}  ·  {rodandoDeUpdate() ? 'atualizado' : 'embutido'}
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Sheet excluir conta — BottomSheet (fundo escurece no lugar + arrasta pra fechar) */}
@@ -350,6 +359,8 @@ function makeStyles(c: any) {
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.brandDivider, marginLeft: 50 },
     logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 28, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: c.brandError, backgroundColor: 'rgba(239, 68, 68, 0.08)' },
     logoutText: { color: c.brandError, fontSize: 16, fontWeight: '700' },
+    otaFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 22 },
+    otaText: { color: c.brandTextSecondary, fontSize: 12, fontWeight: '600' },
     sheetTitle: { fontSize: 20, fontWeight: '800', color: c.brandTextPrimary, marginBottom: 10 },
     sheetWarning: { fontSize: 14, lineHeight: 20, color: c.brandTextSecondary, marginBottom: 18 },
     formError: { color: c.brandTextError, fontWeight: '700', marginBottom: 12 },
