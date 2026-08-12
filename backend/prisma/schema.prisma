@@ -104,6 +104,10 @@ model BankAccount {
   minimumPayment     Float?
   creditLimit        Float?
   creditBrand        String?
+  // Fatura oficial (Pluggy /bills): valor exato e vencimento da fatura mais
+  // recente. Fonte primária da fatura a pagar quando o vencimento ainda não passou.
+  billAmount         Float?
+  billDueDate        DateTime?
   connectedAccount   ConnectedAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
   transactions       Transaction[]
 

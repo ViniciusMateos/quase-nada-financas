@@ -15,6 +15,13 @@ export interface PluggyCreditData {
   isPaid?: boolean;
 }
 
+export interface PluggyBill {
+  id: string;
+  dueDate?: string;
+  totalAmount?: number;
+  minimumPayment?: number;
+}
+
 export interface PluggyAccount {
   id: string;
   type?: string;
@@ -191,6 +198,27 @@ export class PluggyClient {
       throw Errors.ExternalService(`Pluggy listAccounts failed (${res.statusCode})`);
     }
     const json = (await res.body.json()) as { results: PluggyAccount[] };
+    return json.results ?? [];
+  }
+
+  /**
+   * Faturas (bills) de um cartão de crédito. Cada bill é o valor EXATO de uma
+   * fatura fechada (`totalAmount`) com seu `dueDate`. É a fonte oficial da
+   * fatura — bem mais confiável que somar transações ou usar o balance (que é o
+   * limite utilizado = fatura + parcelas futuras). Retorna [] em 4xx (contas
+   * que não são cartão, ou conector sem suporte a bills).
+   */
+  async listBills(accountId: string): Promise<PluggyBill[]> {
+    const apiKey = await this.getApiKey();
+    const res = await request(`${env.PLUGGY_API_URL}/bills?accountId=${encodeURIComponent(accountId)}`, {
+      method: "GET",
+      headers: { "X-API-KEY": apiKey },
+    });
+    if (res.statusCode >= 400) {
+      logger.warn({ status: res.statusCode, accountId }, "Pluggy listBills sem dados");
+      return [];
+    }
+    const json = (await res.body.json()) as { results?: PluggyBill[] };
     return json.results ?? [];
   }
 

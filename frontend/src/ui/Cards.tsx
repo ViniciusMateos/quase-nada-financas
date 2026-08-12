@@ -102,19 +102,18 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
   // Consolida sub-contas com o mesmo rótulo (ex: corretora com 2 "Conta corrente"
   // vira uma só, somando os saldos).
   const mergedSubRows = (() => {
-    type Row = { key: string; label: string; isCredit: boolean; value: number; dueDate?: string | null; total?: number };
+    type Row = { key: string; label: string; isCredit: boolean; value: number; dueDate?: string | null };
     const map = new Map<string, Row>();
     for (const ba of subAccounts) {
       const isCredit = ba.type === 'CREDIT';
       // Cartão: sem número, só a bandeira (Mastercard/Visa...) quando houver.
       const brand = isCredit ? formatBrand(ba.creditBrand) : null;
       const label = bankAccountShortLabel(ba) + (brand ? ` · ${brand}` : '');
-      // Valor exibido no cartão = fatura a pagar (a que fechou).
+      // Valor exibido no cartão = fatura (balance oficial do Pluggy).
       const value = isCredit ? ba.currentStatementAmount ?? ba.balance : ba.balance;
       const existing = map.get(label);
       if (existing) {
         existing.value += value;
-        if (isCredit) existing.total = (existing.total ?? 0) + ba.balance;
       } else {
         map.set(label, {
           key: label,
@@ -122,7 +121,6 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
           isCredit,
           value,
           dueDate: isCredit ? ba.statementDueDate ?? null : undefined,
-          total: isCredit ? ba.balance : undefined,
         });
       }
     }
@@ -156,8 +154,8 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
             <Pressable
               onPress={() =>
                 Alert.alert(
-                  'Fatura a pagar',
-                  'É a fatura que já fechou (soma das compras do ciclo entre o último fechamento e o anterior), ou seja, o valor a pagar no vencimento. O "total" mostrado é o saldo devedor completo do cartão, incluindo parcelas futuras.\n\nConfigure o dia de fechamento e de vencimento do cartão no Dashboard pra deixar o cálculo e os lembretes certinhos.',
+                  'Fatura do cartão',
+                  'É o valor da fatura vindo direto do banco (Open Finance), com o vencimento configurado.\n\nSe algum cartão estiver com valor divergente do app do banco, é porque o Open Finance está com o dado atrasado — reconectar o cartão em Contas atualiza.',
                   [{ text: 'Entendi' }]
                 )
               }
@@ -193,12 +191,9 @@ export function AccountCard({ account, onPress, onDelete, onSync, onSubPress, on
           <View style={[styles.subDot, { backgroundColor: row.isCredit ? colors.brandTextNegative : colors.brandPrimaryDark }]} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.subLabel, { color: colors.brandTextPrimary }]} numberOfLines={1}>{row.label}</Text>
-            {row.isCredit && (row.dueDate || (row.total != null && row.total > 0)) ? (
+            {row.isCredit && row.dueDate ? (
               <Text style={[styles.subMeta, { color: colors.brandTextSecondary }]} numberOfLines={1}>
-                {[
-                  row.dueDate ? `vence ${formatDate(row.dueDate)}` : null,
-                  row.total != null && row.total > 0 ? `total ${formatCurrency(row.total)}` : null,
-                ].filter(Boolean).join(' • ')}
+                vence {formatDate(row.dueDate)}
               </Text>
             ) : null}
           </View>

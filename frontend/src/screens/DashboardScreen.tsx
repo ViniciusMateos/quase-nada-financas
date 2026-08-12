@@ -54,8 +54,8 @@ export default function DashboardScreen() {
 
   const showStatementInfo = () =>
     Alert.alert(
-      'Fatura estimada',
-      'Valores marcados como "fatura estimada" são calculados pela soma das transações do ciclo de faturamento atual. Como o banco geralmente não retorna o valor exato da fatura aberta antes do vencimento, essa informação é parcial e pode não refletir o total final.\n\nPra melhorar a precisão, configure o "dia de fechamento" do cartão tocando no ícone de lápis.',
+      'Faturas do cartão',
+      'A pagar: a fatura que já fechou (valor oficial do banco), que vence na data indicada — é o boleto.\n\nAberta: o que você está acumulando no ciclo atual (desde o fechamento). Inclui as parcelas já comprometidas pra essa fatura e vai crescendo até fechar.\n\nSe o valor "a pagar" estiver diferente do app do banco, é porque o Open Finance ainda não publicou a fatura nova (leva ~1 dia após o fechamento) — reconectar o cartão em Contas atualiza.',
       [{ text: 'Entendi' }]
     );
 
@@ -81,7 +81,7 @@ export default function DashboardScreen() {
           : []),
         {
           text: 'Salvar',
-          onPress: async (text) => {
+          onPress: async (text?: string) => {
             const n = parseInt((text ?? '').trim(), 10);
             if (!Number.isInteger(n) || n < 1 || n > 31) {
               Alert.alert('Inválido', 'Informe um número entre 1 e 31.');
@@ -110,57 +110,63 @@ export default function DashboardScreen() {
       logoUrl?: string | null;
       primaryColor?: string | null;
       isBrand?: boolean;
+    };
+    type CreditCard = {
+      id: string;
+      bankName: string;
+      logoUrl?: string | null;
+      primaryColor?: string | null;
+      isBrand?: boolean;
+      closedAmount: number; // fatura a pagar (fechada)
+      openAmount: number;   // fatura aberta (acumulando)
+      dueDate: string | null;
       creditCloseDay?: number | null;
     };
     const bank: MiniCard[] = [];
-    const credit: MiniCard[] = [];
+    const credit: CreditCard[] = [];
     let totBank = 0;
     let totCredit = 0;
-    type Entry = { card: MiniCard; isCredit: boolean; subtype?: string | null; institution: string };
-    const entries: Entry[] = [];
+    const bankEntries: { card: MiniCard; subtype?: string | null; institution: string }[] = [];
     for (const acc of accounts ?? []) {
       if (acc.isInvestment) continue; // corretora não entra no saldo/cards do banco
       const displayName = acc.customName || acc.bankName;
       const logo = effectiveLogoUrl(acc);
       const tint = effectivePrimaryColor(acc);
+      const isBrand = !!(detectBankKey(acc.customName) ?? detectBankKey(acc.bankName));
       for (const ba of acc.bankAccounts ?? []) {
-        const isCredit = ba.type === 'CREDIT';
-        // Cartão: usa fatura atual aberta (calculada no backend), não o balance
-        // total que inclui parcelas futuras e ajustes.
-        const displayBalance = isCredit
-          ? ba.currentStatementAmount ?? ba.balance
-          : ba.balance;
-        const cardLabel = isCredit && ba.number
-          ? `${displayName} ·${String(ba.number).slice(-4)}`
-          : displayName;
-        entries.push({
-          isCredit,
-          subtype: ba.subtype ?? null,
-          institution: displayName,
-          card: {
+        if (ba.type === 'CREDIT') {
+          const closed = ba.currentStatementAmount ?? ba.balance;
+          credit.push({
             id: ba.id,
-            bankName: cardLabel,
-            balance: displayBalance,
+            bankName: displayName,
             logoUrl: logo,
             primaryColor: tint,
-            isBrand: !!(detectBankKey(acc.customName) ?? detectBankKey(acc.bankName)),
-            creditCloseDay: isCredit ? ba.creditCloseDay ?? null : undefined,
-          },
-        });
-        if (isCredit) totCredit += displayBalance;
-        else totBank += displayBalance;
+            isBrand,
+            closedAmount: closed,
+            openAmount: ba.statementOpenAmount ?? 0,
+            dueDate: ba.statementDueDate ?? null,
+            creditCloseDay: ba.creditCloseDay ?? null,
+          });
+          totCredit += closed;
+        } else {
+          bankEntries.push({
+            card: { id: ba.id, bankName: displayName, balance: ba.balance, logoUrl: logo, primaryColor: tint, isBrand },
+            subtype: ba.subtype ?? null,
+            institution: displayName,
+          });
+          totBank += ba.balance;
+        }
       }
     }
-    // Se há múltiplas BANK accounts da mesma instituição, adiciona subtipo curto
+    // Múltiplas BANK accounts da mesma instituição → adiciona subtipo curto.
     const bankCountByInst = new Map<string, number>();
-    for (const e of entries) if (!e.isCredit) bankCountByInst.set(e.institution, (bankCountByInst.get(e.institution) ?? 0) + 1);
-    for (const e of entries) {
-      if (!e.isCredit && (bankCountByInst.get(e.institution) ?? 0) > 1) {
+    for (const e of bankEntries) bankCountByInst.set(e.institution, (bankCountByInst.get(e.institution) ?? 0) + 1);
+    for (const e of bankEntries) {
+      if ((bankCountByInst.get(e.institution) ?? 0) > 1) {
         const sub = shortSubtype(e.subtype);
         if (sub) e.card.bankName = `${e.institution} · ${sub}`;
       }
-      if (e.isCredit) credit.push(e.card);
-      else bank.push(e.card);
+      bank.push(e.card);
     }
     return { bankCards: bank, creditCards: credit, totalChecking: totBank, totalCredit: totCredit };
   }, [accounts]);
@@ -251,6 +257,76 @@ export default function DashboardScreen() {
         <Ionicons name="chevron-forward" size={18} color={colors.brandTextSecondary} />
       </Pressable>
 
+      {bankCards.length > 0 ? (
+        <>
+          <SectionTitle>Contas correntes</SectionTitle>
+          <View style={styles.cardsRow}>
+            {bankCards.map((b) => (
+              <View
+                key={b.id}
+                style={[styles.miniCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
+              >
+                <BankBadge bankName={b.bankName} logoUrl={b.logoUrl} primaryColor={b.primaryColor} size={36} variant={b.isBrand ? 'filled' : 'padded'} />
+                <Text style={[styles.miniCardLabel, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                  {b.bankName}
+                </Text>
+                <Text style={[styles.miniCardValue, { color: colors.brandTextPrimary }]}>
+                  {formatCurrency(b.balance)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {creditCards.length > 0 ? (
+        <>
+          <View style={styles.sectionRow}>
+            <Text style={[styles.section, { color: colors.brandTextPrimary, marginTop: 0, marginBottom: 0 }]}>Faturas dos cartões</Text>
+            <Pressable onPress={showStatementInfo} hitSlop={8}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.brandTextSecondary} />
+            </Pressable>
+          </View>
+          <View style={{ gap: 10 }}>
+            {creditCards.map((c) => (
+              <View
+                key={c.id}
+                style={[styles.faturaCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
+              >
+                <View style={styles.faturaHeader}>
+                  <View style={styles.miniCardBadgeWrap}>
+                    <BankBadge bankName={c.bankName} logoUrl={c.logoUrl} primaryColor={c.primaryColor} size={34} variant={c.isBrand ? 'filled' : 'padded'} />
+                    <View style={[styles.miniCardBadgeCorner, { backgroundColor: colors.brandError }]}>
+                      <Ionicons name="card" size={9} color="#FFFFFF" />
+                    </View>
+                  </View>
+                  <Text style={[styles.faturaBank, { color: colors.brandTextPrimary }]} numberOfLines={1}>{c.bankName}</Text>
+                  <Pressable onPress={() => handleEditCloseDay(c.id, c.creditCloseDay)} hitSlop={6} style={styles.closeDayRow}>
+                    <Text style={[styles.closeDayText, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                      {c.creditCloseDay ? `fecha ${c.creditCloseDay}` : 'definir'}
+                    </Text>
+                    <Ionicons name="pencil" size={11} color={colors.brandTextSecondary} />
+                  </Pressable>
+                </View>
+                <View style={styles.faturaRow}>
+                  <View style={styles.faturaCol}>
+                    <Text style={[styles.faturaLabel, { color: colors.brandTextSecondary }]} numberOfLines={1}>
+                      A pagar{c.dueDate ? ` · vence ${formatDate(c.dueDate)}` : ''}
+                    </Text>
+                    <Text style={[styles.faturaValueMain, { color: colors.brandTextNegative }]}>{formatCurrency(c.closedAmount)}</Text>
+                  </View>
+                  <View style={[styles.faturaVDivider, { backgroundColor: colors.brandDivider }]} />
+                  <View style={styles.faturaCol}>
+                    <Text style={[styles.faturaLabel, { color: colors.brandTextSecondary }]}>Aberta (este mês)</Text>
+                    <Text style={[styles.faturaValueOpen, { color: colors.brandTextPrimary }]}>{formatCurrency(c.openAmount)}</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
       {portfolio && portfolio.groups.length > 0 ? (
         <>
           <SectionTitle onSeeAll={() => navigation.navigate('Ativos')}>Investimentos</SectionTitle>
@@ -298,69 +374,6 @@ export default function DashboardScreen() {
               </View>
             ))}
           </Pressable>
-        </>
-      ) : null}
-
-      {bankCards.length > 0 ? (
-        <>
-          <SectionTitle>Contas correntes</SectionTitle>
-          <View style={styles.cardsRow}>
-            {bankCards.map((b) => (
-              <View
-                key={b.id}
-                style={[styles.miniCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
-              >
-                <BankBadge bankName={b.bankName} logoUrl={b.logoUrl} primaryColor={b.primaryColor} size={36} variant={b.isBrand ? 'filled' : 'padded'} />
-                <Text style={[styles.miniCardLabel, { color: colors.brandTextSecondary }]} numberOfLines={1}>
-                  {b.bankName}
-                </Text>
-                <Text style={[styles.miniCardValue, { color: colors.brandTextPrimary }]}>
-                  {formatCurrency(b.balance)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      {creditCards.length > 0 ? (
-        <>
-          <SectionTitle>Cartões de crédito</SectionTitle>
-          <View style={styles.cardsRow}>
-            {creditCards.map((c) => (
-              <View
-                key={c.id}
-                style={[styles.miniCard, { backgroundColor: colors.brandSurface, borderRadius: radius.lg, ...shadows.card }]}
-              >
-                <View style={styles.miniCardBadgeWrap}>
-                  <BankBadge bankName={c.bankName} logoUrl={c.logoUrl} primaryColor={c.primaryColor} size={36} variant={c.isBrand ? 'filled' : 'padded'} />
-                  <View style={[styles.miniCardBadgeCorner, { backgroundColor: colors.brandError }]}>
-                    <Ionicons name="card" size={10} color="#FFFFFF" />
-                  </View>
-                </View>
-                <Text style={[styles.miniCardLabel, { color: colors.brandTextSecondary }]} numberOfLines={1}>
-                  {c.bankName}
-                </Text>
-                <Text style={[styles.miniCardValue, { color: colors.brandTextPrimary }]}>
-                  {formatCurrency(c.balance)}
-                </Text>
-                <Pressable onPress={showStatementInfo} hitSlop={6} style={styles.statementHintRow}>
-                  <Text style={[styles.miniCardHint, { color: colors.brandTextSecondary }]}>Fatura estimada</Text>
-                  <Ionicons name="information-circle-outline" size={12} color={colors.brandTextSecondary} />
-                </Pressable>
-                <Pressable
-                  onPress={() => handleEditCloseDay(c.id, c.creditCloseDay)}
-                  hitSlop={6}
-                  style={styles.closeDayRow}
-                >
-                  <Text style={[styles.closeDayText, { color: colors.brandTextSecondary }]} numberOfLines={1}>
-                    {c.creditCloseDay ? `Fecha dia ${c.creditCloseDay}` : 'Definir fechamento'}
-                  </Text>
-                  <Ionicons name="pencil" size={11} color={colors.brandTextSecondary} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
         </>
       ) : null}
 
@@ -544,8 +557,17 @@ const styles = StyleSheet.create({
   miniCardValue: { fontSize: 18, fontWeight: '900' },
   miniCardHint: { fontSize: 10, fontWeight: '600' },
   statementHintRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  closeDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  closeDayRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   closeDayText: { fontSize: 11, fontWeight: '500' },
+  faturaCard: { padding: 14 },
+  faturaHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  faturaBank: { flex: 1, fontSize: 14, fontWeight: '800' },
+  faturaRow: { flexDirection: 'row', alignItems: 'stretch' },
+  faturaCol: { flex: 1, gap: 3 },
+  faturaLabel: { fontSize: 11, fontWeight: '600' },
+  faturaValueMain: { fontSize: 20, fontWeight: '900' },
+  faturaValueOpen: { fontSize: 20, fontWeight: '900' },
+  faturaVDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 14 },
   connectCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 18, marginTop: 16, borderWidth: 1, borderStyle: 'dashed' },
   connectCtaText: { fontSize: 14, fontWeight: '700' },
   emptyCard: { padding: 24 },

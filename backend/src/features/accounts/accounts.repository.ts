@@ -40,6 +40,8 @@ export class AccountsRepository {
     minimumPayment?: number | null;
     creditLimit?: number | null;
     creditBrand?: string | null;
+    billAmount?: number | null;
+    billDueDate?: Date | null;
   }): Promise<BankAccount> {
     return prisma.bankAccount.upsert({
       where: {
@@ -62,6 +64,8 @@ export class AccountsRepository {
         minimumPayment: data.minimumPayment ?? null,
         creditLimit: data.creditLimit ?? null,
         creditBrand: data.creditBrand ?? null,
+        billAmount: data.billAmount ?? null,
+        billDueDate: data.billDueDate ?? null,
         // creditCloseDay e creditDueDay são do usuário — nunca sobrescritos no sync.
       },
       create: data,

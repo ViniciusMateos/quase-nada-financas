@@ -51,6 +51,7 @@ export class AccountsService {
     });
 
     for (const acc of accounts) {
+      const bill = await this.fetchLatestBill(acc);
       const bankAccount = await this.repo.upsertBankAccount({
         connectedAccountId: connected.id,
         externalId: acc.id,
@@ -67,6 +68,8 @@ export class AccountsService {
         minimumPayment: acc.creditData?.minimumPayment ?? null,
         creditLimit: acc.creditData?.creditLimit ?? null,
         creditBrand: acc.creditData?.brand ?? null,
+        billAmount: bill.billAmount,
+        billDueDate: bill.billDueDate,
       });
 
       // Sincroniza últimos 90 dias na primeira carga
@@ -98,119 +101,148 @@ export class AccountsService {
     return this.enrichWithCurrentStatement(accounts);
   }
 
+  /** Fatura mais recente (Pluggy /bills) de um cartão: a de maior dueDate. */
+  private async fetchLatestBill(acc: { id: string; type?: string }): Promise<{ billAmount: number | null; billDueDate: Date | null }> {
+    if (acc.type !== "CREDIT") return { billAmount: null, billDueDate: null };
+    const bills = await this.pluggy.listBills(acc.id).catch(() => []);
+    let latest: { totalAmount?: number; dueDate?: string } | null = null;
+    for (const b of bills) {
+      if (!b.dueDate) continue;
+      if (!latest || b.dueDate > (latest.dueDate ?? "")) latest = b;
+    }
+    return { billAmount: latest?.totalAmount ?? null, billDueDate: parsePluggyDate(latest?.dueDate) };
+  }
+
   /**
-   * Para cada BankAccount type=CREDIT, calcula os números da fatura. Quando o
-   * `creditCloseDay` está configurado (dia do mês 1-31), produz:
-   *
-   *   - statementClosedAmount: fatura que JÁ FECHOU e está a pagar
-   *     janela = [fechamento anterior, último fechamento)
-   *   - statementOpenAmount: fatura nova, ainda acumulando
-   *     janela = [último fechamento, now]
-   *   - statementDueDate: vencimento da fatura fechada, derivado do creditDueDay
-   *     (cai pro balanceDueDate da Pluggy quando não há creditDueDay)
-   *   - currentStatementAmount = statementClosedAmount (o boleto a pagar)
-   *
-   * Sem `creditCloseDay`, cai no fallback antigo (desde último pagamento, ou
-   * balance cru) só pra `currentStatementAmount`.
-   *
-   * Parcelas futuras (occurredAt > now) ficam fora das duas janelas — entram só
-   * na fatura do mês em que serão cobradas. `minimumPayment`/`creditLimit`/
-   * `creditBrand`/`balance` já vêm no registro e seguem pro payload.
+   * Soma das PARCELAS que caem na fatura do mês-alvo (year*12+mês), PROJETANDO
+   * o plano inteiro a partir dos dados que temos — sem depender do Pluggy ter
+   * publicado a parcela. Reconstrói cada plano (por descrição normalizada +
+   * total), ancora numa parcela conhecida pra achar o mês da parcela 1, e gera
+   * a parcela do mês-alvo se ela existir no plano. Usa o valor da parcela mais
+   * recente conhecida (a 1ª às vezes tem centavo diferente por arredondamento).
    */
-  private async enrichWithCurrentStatement(
-    accounts: AccountWithBankAccounts[]
-  ): Promise<AccountWithBankAccounts[]> {
-    const creditAccounts = accounts.flatMap((c) =>
-      c.bankAccounts.filter((ba) => ba.type === "CREDIT")
-    );
-    if (creditAccounts.length === 0) return accounts;
+  private async projectInstallmentsForFatura(
+    bankAccountId: string,
+    closeDay: number,
+    targetMonthIndex: number
+  ): Promise<{ sum: number; hasPlan: boolean }> {
+    const txs = await prisma.transaction.findMany({
+      where: { bankAccountId, installmentTotal: { not: null }, installmentCurrent: { not: null } },
+      select: { description: true, amount: true, installmentCurrent: true, installmentTotal: true, occurredAt: true },
+    });
+    if (txs.length === 0) return { sum: 0, hasPlan: false };
 
+    type Plan = { total: number; lowNum: number; lowMonthIdx: number; highNum: number; amount: number };
+    const plans = new Map<string, Plan>();
+    for (const tx of txs) {
+      const total = tx.installmentTotal as number;
+      const num = tx.installmentCurrent as number;
+      const monthIdx = faturaCloseMonthIndex(tx.occurredAt, closeDay);
+      // Chave robusta a duplicata do MeuPluggy (mesma compra com descrição
+      // levemente diferente: "Eventim *Eve" vs "*Eventim", " AIRBNB" vs "AIRBNB"):
+      // 1ª palavra da descrição + total + valor arredondado. Colapsa as variações.
+      const firstToken = (tx.description ?? "").toLowerCase().replace(/\s+/g, " ").trim().split(/[ *]/)[0] || "?";
+      const key = `${firstToken}|${total}|${Math.round(Math.abs(tx.amount))}`;
+      const cur = plans.get(key);
+      if (!cur) {
+        plans.set(key, { total, lowNum: num, lowMonthIdx: monthIdx, highNum: num, amount: Math.abs(tx.amount) });
+      } else {
+        if (num < cur.lowNum) { cur.lowNum = num; cur.lowMonthIdx = monthIdx; }
+        if (num >= cur.highNum) { cur.highNum = num; cur.amount = Math.abs(tx.amount); }
+      }
+    }
+
+    let sum = 0;
+    for (const [, p] of plans) {
+      const firstMonthIdx = p.lowMonthIdx - (p.lowNum - 1); // mês da fatura da parcela 1
+      const parcelaNum = targetMonthIndex - firstMonthIdx + 1;
+      if (parcelaNum >= 1 && parcelaNum <= p.total) sum += p.amount;
+    }
+    return { sum: Math.round(sum * 100) / 100, hasPlan: plans.size > 0 };
+  }
+
+  /**
+   * Para cada BankAccount type=CREDIT define os números da fatura:
+   *
+   *   - currentStatementAmount = fatura A PAGAR (fechada). Prioridade:
+   *       1) bill oficial do Pluggy (/bills) se o vencimento ainda não passou;
+   *       2) cálculo NOSSO = à vista (Pluggy) + parcelas PROJETADAS por nós
+   *          (pra cartão com parcelamento — cobre o buraco do MeuPluggy que não
+   *          publica as parcelas da fatura corrente);
+   *       3) balance (limite utilizado) pra cartão sem parcelamento.
+   *   - statementOpenAmount = fatura ABERTA = à vista do ciclo novo + parcelas
+   *     projetadas que caem nele.
+   *   - statementDueDate = bill; senão derivado de creditCloseDay + creditDueDay.
+   *
+   * Ruído irredutível: compras no PRÓPRIO dia do fechamento podem cair na
+   * fatura seguinte (o banco corta por horário; só temos a data). É pequeno.
+   */
+  private async enrichWithCurrentStatement(accounts: AccountWithBankAccounts[]): Promise<AccountWithBankAccounts[]> {
     const now = new Date();
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const DAY = 86_400_000;
 
-    const entries = await Promise.all(
-      creditAccounts.map(async (ba) => {
-        // Caminho principal: closeDay configurado → fatura fechada + aberta + vencimento.
-        if (ba.creditCloseDay && ba.creditCloseDay >= 1 && ba.creditCloseDay <= 31) {
-          const lastClose = lastCloseDateFromCloseDay(ba.creditCloseDay, now);
-          const prevClose = prevCloseDateFromCloseDay(ba.creditCloseDay, lastClose);
-          const [closedAgg, openAgg] = await Promise.all([
-            prisma.transaction.aggregate({
-              where: {
-                bankAccountId: ba.id,
-                occurredAt: { gte: prevClose, lt: lastClose },
-                categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.aggregate({
-              where: {
-                bankAccountId: ba.id,
-                occurredAt: { gte: lastClose, lte: now },
-                categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
-              },
-              _sum: { amount: true },
-            }),
-          ]);
-          const closed = Math.abs(closedAgg._sum.amount ?? 0);
-          const open = Math.abs(openAgg._sum.amount ?? 0);
-          const dueDate = dueDateForStatement(ba.creditCloseDay, ba.creditDueDay, lastClose, ba.creditDueDate);
-          return {
-            id: ba.id,
-            currentStatementAmount: closed,
-            statementClosedAmount: closed,
-            statementOpenAmount: open,
-            statementDueDate: dueDate ? dueDate.toISOString() : null,
-          } as const;
+    const creditBAs = accounts.flatMap((c) => c.bankAccounts.filter((ba) => ba.type === "CREDIT"));
+    const calcByBA = new Map<string, { closed: number; open: number; useComputed: boolean }>();
+    await Promise.all(
+      creditBAs.map(async (ba) => {
+        if (!ba.creditCloseDay || ba.creditCloseDay < 1 || ba.creditCloseDay > 31) {
+          calcByBA.set(ba.id, { closed: 0, open: 0, useComputed: false });
+          return;
         }
-
-        // Fallback: sem closeDay → desde último pagamento, ou balance cru.
-        const lastPayment = await prisma.transaction.findFirst({
-          where: { bankAccountId: ba.id, categoryId: INTERNAL_TRANSFER_CATEGORY_ID },
-          orderBy: { occurredAt: "desc" },
-          select: { occurredAt: true },
+        const closeDay = ba.creditCloseDay;
+        const lastClose = lastCloseDateFromCloseDay(closeDay, now);
+        const prevClose = prevCloseDateFromCloseDay(closeDay, lastClose);
+        const nextClose = nextCloseDateFromCloseDay(closeDay, lastClose);
+        // à vista (não-parcela); parcelas entram via projeção, sem depender do Pluggy.
+        const avistaWhere = (from: Date, to: Date) => ({
+          bankAccountId: ba.id,
+          amount: { lt: 0 } as const,
+          installmentTotal: null,
+          occurredAt: { gte: from, lt: to },
+          categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
         });
-        if (!lastPayment) {
-          return {
-            id: ba.id,
-            currentStatementAmount: ba.balance,
-            statementClosedAmount: undefined,
-            statementOpenAmount: undefined,
-            statementDueDate: ba.creditDueDate ? ba.creditDueDate.toISOString() : null,
-          } as const;
-        }
-        const agg = await prisma.transaction.aggregate({
-          where: {
-            bankAccountId: ba.id,
-            occurredAt: { gt: lastPayment.occurredAt, lte: now },
-            categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
-          },
-          _sum: { amount: true },
+        const [avClosed, avOpen, projClosed, projOpen] = await Promise.all([
+          prisma.transaction.aggregate({ where: avistaWhere(new Date(prevClose.getTime() + DAY), new Date(lastClose.getTime() + DAY)), _sum: { amount: true } }),
+          prisma.transaction.aggregate({ where: avistaWhere(new Date(lastClose.getTime() + DAY), new Date(nextClose.getTime() + DAY)), _sum: { amount: true } }),
+          this.projectInstallmentsForFatura(ba.id, closeDay, monthIndex(lastClose)),
+          this.projectInstallmentsForFatura(ba.id, closeDay, monthIndex(nextClose)),
+        ]);
+        calcByBA.set(ba.id, {
+          closed: Math.round((Math.abs(avClosed._sum.amount ?? 0) + projClosed.sum) * 100) / 100,
+          open: Math.round((Math.abs(avOpen._sum.amount ?? 0) + projOpen.sum) * 100) / 100,
+          // Só usa o cálculo pra "a pagar" quando há parcela caindo NESTA fatura
+          // (aí o balance está inflado por parcelas futuras). Sem parcela na
+          // fatura (ex: Nubank), o balance é mais confiável que o à vista.
+          useComputed: projClosed.sum > 0.005,
         });
-        return {
-          id: ba.id,
-          currentStatementAmount: Math.abs(agg._sum.amount ?? 0),
-          statementClosedAmount: undefined,
-          statementOpenAmount: undefined,
-          statementDueDate: ba.creditDueDate ? ba.creditDueDate.toISOString() : null,
-        } as const;
       })
     );
-    const byBA = new Map(entries.map((e) => [e.id, e]));
 
     return accounts.map((c) => ({
       ...c,
       bankAccounts: c.bankAccounts.map((ba) => {
         if (ba.type !== "CREDIT") return ba;
-        const e = byBA.get(ba.id);
-        return e
-          ? {
-              ...ba,
-              currentStatementAmount: e.currentStatementAmount,
-              statementClosedAmount: e.statementClosedAmount,
-              statementOpenAmount: e.statementOpenAmount,
-              statementDueDate: e.statementDueDate,
-            }
-          : ba;
+        const calc = calcByBA.get(ba.id) ?? { closed: 0, open: 0, useComputed: false };
+
+        let statementDueDate: string | null = ba.creditDueDate ? ba.creditDueDate.toISOString() : null;
+        if (ba.creditCloseDay && ba.creditCloseDay >= 1 && ba.creditCloseDay <= 31) {
+          const lastClose = lastCloseDateFromCloseDay(ba.creditCloseDay, now);
+          const dd = dueDateForStatement(ba.creditCloseDay, ba.creditDueDay, lastClose, ba.creditDueDate);
+          if (dd) statementDueDate = dd.toISOString();
+        }
+
+        let currentStatementAmount: number;
+        if (ba.billAmount != null && ba.billDueDate && ba.billDueDate >= startOfToday) {
+          currentStatementAmount = ba.billAmount; // 1) bill oficial fresco
+          statementDueDate = ba.billDueDate.toISOString();
+        } else if (calc.useComputed) {
+          currentStatementAmount = calc.closed; // 2) à vista + parcelas projetadas
+        } else {
+          currentStatementAmount = ba.balance; // 3) sem parcelamento → limite utilizado
+        }
+
+        return { ...ba, currentStatementAmount, statementDueDate, statementOpenAmount: calc.open };
       }),
     }));
   }
@@ -283,8 +315,13 @@ export class AccountsService {
     let totalNewTx = 0;
 
     for (const acc of remoteAccounts) {
-      const previous = await this.repo.findBankAccountByExternal(conn.id, acc.id);
-      const since = previous?.lastSyncAt ?? new Date(Date.now() - 90 * 86_400_000);
+      // Janela ROLANTE de 90 dias (não incremental desde lastSyncAt). O Pluggy
+      // às vezes adiciona transações com data no passado DEPOIS de já termos
+      // avançado o lastSyncAt — a busca por data (`from`) nunca as pegaria e elas
+      // sumiam (ex: Nubank parando numa data antiga). Como o ingest deduplica por
+      // externalId, re-buscar 90 dias a cada sync é seguro e completa os buracos.
+      const since = new Date(Date.now() - 90 * 86_400_000);
+      const bill = await this.fetchLatestBill(acc);
 
       const bankAccount = await this.repo.upsertBankAccount({
         connectedAccountId: conn.id,
@@ -302,6 +339,8 @@ export class AccountsService {
         minimumPayment: acc.creditData?.minimumPayment ?? null,
         creditLimit: acc.creditData?.creditLimit ?? null,
         creditBrand: acc.creditData?.brand ?? null,
+        billAmount: bill.billAmount,
+        billDueDate: bill.billDueDate,
       });
 
       const txs = await this.pluggy.listTransactions(acc.id, since);
@@ -385,10 +424,26 @@ function lastCloseDateFromCloseDay(closeDay: number, now: Date): Date {
   return new Date(Date.UTC(refYear, refMonth, effectiveDay, 0, 0, 0, 0));
 }
 
+/** Índice de mês contínuo (ano*12 + mês 0-11), pra comparar meses de fatura. */
+function monthIndex(date: Date): number {
+  return date.getUTCFullYear() * 12 + date.getUTCMonth();
+}
+
+/**
+ * Mês (índice contínuo) da FATURA que cobra uma transação na data `date`, dado
+ * o `closeDay`: se o dia da compra é > closeDay, cai na fatura do mês seguinte;
+ * senão, na fatura do próprio mês. (Ex: fecha dia 9 → compra em 20/07 cai na
+ * fatura de agosto.)
+ */
+function faturaCloseMonthIndex(date: Date, closeDay: number): number {
+  const bump = date.getUTCDate() > closeDay ? 1 : 0;
+  return date.getUTCFullYear() * 12 + date.getUTCMonth() + bump;
+}
+
 /**
  * Início do fechamento ANTERIOR ao `lastClose` (um ciclo pra trás), clampando
- * pro último dia quando o mês não tem o `closeDay`. Define o começo da janela
- * da fatura que acabou de fechar.
+ * pro último dia do mês quando não existe o `closeDay`. Começo da janela da
+ * fatura que fechou.
  */
 function prevCloseDateFromCloseDay(closeDay: number, lastClose: Date): Date {
   let y = lastClose.getUTCFullYear();
@@ -396,6 +451,22 @@ function prevCloseDateFromCloseDay(closeDay: number, lastClose: Date): Date {
   if (m < 0) {
     m = 11;
     y -= 1;
+  }
+  const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(closeDay, daysInMonth), 0, 0, 0, 0));
+}
+
+/**
+ * Próximo fechamento DEPOIS de `lastClose` (um ciclo à frente), clampando pro
+ * último dia do mês quando não existe o `closeDay`. Define o fim da janela da
+ * fatura aberta (a que está acumulando).
+ */
+function nextCloseDateFromCloseDay(closeDay: number, lastClose: Date): Date {
+  let y = lastClose.getUTCFullYear();
+  let m = lastClose.getUTCMonth() + 1;
+  if (m > 11) {
+    m = 0;
+    y += 1;
   }
   const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
   return new Date(Date.UTC(y, m, Math.min(closeDay, daysInMonth), 0, 0, 0, 0));
