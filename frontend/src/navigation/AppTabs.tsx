@@ -9,8 +9,10 @@ import CategoriesScreen from '@/screens/CategoriesScreen';
 import SubscriptionsScreen from '@/screens/SubscriptionsScreen';
 import InstallmentsScreen from '@/screens/InstallmentsScreen';
 import InvestmentsScreen from '@/screens/InvestmentsScreen';
+import DistribuicaoScreen from '@/screens/DistribuicaoScreen';
 import AssetsScreen from '@/screens/AssetsScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
+import TestesScreen from '@/screens/TestesScreen';
 import { TopTabBar } from '@/ui/TopTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -27,12 +29,16 @@ export function AppTabs() {
       screenOptions={{
         headerShown: false,
         tabBarPosition: 'top',
+        // Slide direcional: trocar pra uma aba à direita entra pela direita, e
+        // vice-versa (RN Navigation 7). Combina com o scroll das pills.
+        animation: 'shift',
         sceneStyle: { backgroundColor: colors.brandBackground },
       }}
       tabBar={(props) => <TopTabBar {...props} topInset={topInset} />}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Transacoes" component={TransactionsScreen} />
+      <Tab.Screen name="Distribuicao" component={DistribuicaoScreen} />
       <Tab.Screen name="Categorias" component={CategoriesScreen} />
       <Tab.Screen name="Assinaturas" component={SubscriptionsScreen} />
       <Tab.Screen name="Parcelamentos" component={InstallmentsScreen} />
@@ -40,6 +46,7 @@ export function AppTabs() {
       <Tab.Screen name="Ativos" component={AssetsScreen} />
       <Tab.Screen name="Contas" component={AccountsScreen} />
       <Tab.Screen name="Configuracoes" component={SettingsScreen} />
+      <Tab.Screen name="Testes" component={TestesScreen} />
     </Tab.Navigator>
   );
 }
