@@ -36,10 +36,13 @@ App de financas pessoais com contas via Open Finance/Pluggy, transacoes categori
 - Aba Ativos: carteira de investimentos das corretoras (Rico/XP via MeuPluggy) + Binance, agrupada por instituicao e classe (FII, acoes, renda fixa...), com valorizacao do dia/mes via snapshot diario e transacoes (aportes/resgates) por ativo.
 - Corretora fica fora do saldo e das transacoes (dinheiro aplicado nao e saldo disponivel).
 - Detecta o aporte real na corretora e fecha a regra de investimento sozinho.
-- Aba Distribuicao: planejador de alocacao dividido por mes, com varias
-  distribuicoes (Salario, Freela...), flag de recorrencia (recorrente aparece
-  todo mes pra preencher o valor), itens em % ou R$, check de comprado/aplicado
-  e vinculo de transacoes reais como comprovante (picker que navega por mes e busca).
+- Aba Distribuicao: planejador de alocacao dividido por mes (seletor de mes por
+  calendario, com transicao ao trocar), com varias distribuicoes (Salario,
+  Freela...) reordenaveis por long-press, flag de recorrencia, itens em % ou R$,
+  check de comprado/aplicado e vinculo de transacoes reais como comprovante (o
+  valor do item vira a soma das vinculadas). A pill "salario" injeta sozinha as
+  assinaturas e as parcelas do mes como itens automaticos e editaveis, com valor
+  pela cobranca real do mes.
 - Aba de Testes: dispara localmente as notificacoes do app (fatura fechou, vence
   amanha/hoje, resumo semanal) pra ver o visual sem esperar o dia certo.
 - Resumo semanal (entradas, saidas, saldo e top categorias) com push toda segunda.
