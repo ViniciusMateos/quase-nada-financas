@@ -3,7 +3,8 @@ import { TransactionsRepository } from "./transactions.repository.js";
 import { Errors } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
 import { MCC_TO_CATEGORY_NAME } from "./mcc-map.js";
-import { DEFAULT_CATEGORIES } from "../categories/categories.seed.js";
+import { prisma } from "../../config/database.js";
+import { DEFAULT_CATEGORIES, INTERNAL_MOVEMENT_CATEGORY_ID } from "../categories/categories.seed.js";
 import { InvestmentsService } from "../investments/investments.service.js";
 import type { PluggyTransaction } from "../../integrations/pluggy.client.js";
 
@@ -123,6 +124,8 @@ export class TransactionsService {
   async recategorizeAll(userId: string): Promise<{ updated: number; total: number }> {
     const all = await this.repo.findAllTransactionsByUser(userId);
     const userRules = await this.repo.findCategoryRulesByUser(userId);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { selfName: true } });
+    const selfName = user?.selfName ?? null;
     let updated = 0;
     for (const tx of all) {
       const ptx = {
@@ -133,7 +136,7 @@ export class TransactionsService {
         description: tx.description,
         merchant: { name: tx.merchantName ?? undefined, mcc: tx.merchantMcc ?? undefined },
       } as PluggyTransaction;
-      const newCategoryId = await this.resolveCategoryId(userId, ptx, userRules);
+      const newCategoryId = await this.resolveCategoryId(userId, ptx, userRules, selfName);
       if (newCategoryId && newCategoryId !== tx.categoryId) {
         await this.repo.updateTransactionCategory(tx.id, newCategoryId);
         updated++;
@@ -246,13 +249,15 @@ export class TransactionsService {
     if (pluggyTxs.length === 0) return 0;
 
     const userRules = await this.repo.findCategoryRulesByUser(userId);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { selfName: true } });
+    const selfName = user?.selfName ?? null;
 
     let inserted = 0;
     for (const ptx of pluggyTxs) {
       const exists = await this.repo.findTransactionByExternalId(bankAccountId, ptx.id);
       if (exists) continue;
 
-      const categoryId = await this.resolveCategoryId(userId, ptx, userRules);
+      const categoryId = await this.resolveCategoryId(userId, ptx, userRules, selfName);
       const normalizedAmount = normalizeAmountSign(ptx);
 
       await this.repo.createTransaction({
@@ -291,11 +296,20 @@ export class TransactionsService {
       mcc: string | null;
       categoryId: string;
       priority: number;
-    }>
+    }>,
+    selfName: string | null = null
   ): Promise<string | null> {
     const merchantName = ptx.merchant?.name?.toLowerCase() ?? "";
     const mcc = ptx.merchant?.mcc ?? null;
     const description = (ptx.description ?? "").toLowerCase();
+
+    // 0) movimentação interna: cofrinho/reserva do MP, caixinha RDB do Nubank,
+    //    aplicação/resgate/rendimento dessas reservas, E PIX/transferência pra si
+    //    mesmo. Dinheiro que só troca de lugar — categoria excluída de saldo,
+    //    gastos, receitas e da lista. Prioridade máxima.
+    if (INTERNAL_MOVEMENT_RE.test(description) || isSelfTransfer(ptx.description ?? "", selfName)) {
+      return INTERNAL_MOVEMENT_CATEGORY_ID;
+    }
 
     // 1) regras do usuário (prioridade desc)
     const sortedRules = [...userRules].sort((a, b) => b.priority - a.priority);
@@ -329,6 +343,41 @@ export class TransactionsService {
     const fallback = DEFAULT_CATEGORIES.find((c) => c.name === "Outros");
     return fallback?.id ?? null;
   }
+}
+
+/**
+ * Movimentação interna (dinheiro que só muda de lugar, não é gasto/receita):
+ *   - MP: "Dinheiro reservado ...", "Dinheiro resgatado ..." (cofrinho/reservas)
+ *   - Nubank: "Aplicação RDB" / "Resgate RDB" (caixinha RDB)
+ *   - "Rendimentos" exato = rendimento do cofrinho MP (NÃO pega "Rendimentos de
+ *     clientes XPSF11" dos FIIs, que tem mais texto).
+ * "reserva" sozinho NÃO entra (senão pega "Reserva Cultural" = restaurante real).
+ */
+// Movimento interno = dinheiro só trocando de lugar (reserva/caixinha). O
+// RENDIMENTO do cofrinho NÃO entra aqui de propósito: é ganho de verdade e cai
+// em "Investimentos" (conta como receita).
+const INTERNAL_MOVEMENT_RE = /\brdb\b|dinheiro (reservado|resgatado|retirado|devolvido|disponibilizado)/i;
+
+// Remove acento e minúsculo (pra casar nome do titular com a descrição).
+function stripAccentsLower(s: string): string {
+  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+// Descrição parece uma transferência/pix (não uma compra)?
+const TRANSFER_RE = /transfer|pix|\bted\b|\bdoc\b|enviad|recebid/i;
+/**
+ * PIX/transferência pra si mesmo: a descrição parece transferência E contém
+ * TODOS os tokens significativos (>=3 letras, sem "de/da/do") do nome do titular.
+ * Ex.: titular "Vinicius de Souza Mateos" casa "Pix enviado Vinicius de Souza
+ * Mateos" mas NÃO "Pix enviado Julia de Souza Mateos" (falta "vinicius").
+ */
+function isSelfTransfer(description: string, selfName: string | null): boolean {
+  if (!selfName) return false;
+  if (!TRANSFER_RE.test(description)) return false;
+  const desc = stripAccentsLower(description);
+  const tokens = stripAccentsLower(selfName)
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !["de", "da", "do", "dos", "das"].includes(t));
+  return tokens.length > 0 && tokens.every((t) => desc.includes(t));
 }
 
 const KEYWORD_RULES: Array<{ category: string; keywords: string[] }> = [

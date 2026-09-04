@@ -25,7 +25,18 @@ export const DEFAULT_CATEGORIES: SeedCategory[] = [
   { id: "00000000-0000-4000-8000-00000000000E", name: "Salário",        icon: "briefcase",      color: "#16A34A" },
   { id: "00000000-0000-4000-8000-00000000000F", name: "Outros",             icon: "more-horizontal", color: "#6B7280" },
   { id: "00000000-0000-4000-8000-000000000010", name: "Pagamento de fatura", icon: "repeat",          color: "#94A3B8" },
+  { id: "00000000-0000-4000-8000-000000000011", name: "Transferência interna", icon: "repeat",        color: "#94A3B8" },
 ];
 
-/** Transferência interna conta↔cartão. Excluída dos summaries. */
+/** Transferência interna conta↔cartão (pagamento de fatura). Excluída dos summaries. */
 export const INTERNAL_TRANSFER_CATEGORY_ID = "00000000-0000-4000-8000-000000000010";
+
+/**
+ * Movimentação interna: dinheiro que só muda de lugar (cofrinho/caixinha do MP,
+ * RDB do Nubank, aplicação/resgate/rendimento dessas reservas). Não é gasto nem
+ * receita — fica FORA de saldo, gastos, receitas e da lista de transações.
+ */
+export const INTERNAL_MOVEMENT_CATEGORY_ID = "00000000-0000-4000-8000-000000000011";
+
+/** Categorias que somem de todos os summaries/listagens (dinheiro que só troca de lugar). */
+export const EXCLUDED_SUMMARY_CATEGORY_IDS = [INTERNAL_TRANSFER_CATEGORY_ID, INTERNAL_MOVEMENT_CATEGORY_ID];

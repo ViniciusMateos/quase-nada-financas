@@ -5,7 +5,7 @@ import { prisma } from "../../config/database.js";
 import { redis } from "../../lib/redis.js";
 import { Errors } from "../../lib/errors.js";
 import { detectInstitutionName } from "./detect-institution.js";
-import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
+import { EXCLUDED_SUMMARY_CATEGORY_IDS, INTERNAL_MOVEMENT_CATEGORY_ID } from "../categories/categories.seed.js";
 import type { BankAccount, ConnectedAccount } from "@prisma/client";
 
 /** Conta conectada com sub-contas + campos de fatura calculados (cartão). */
@@ -98,7 +98,40 @@ export class AccountsService {
       }
     }
     const accounts = await this.repo.findAccountsWithBankAccounts(userId);
-    return this.enrichWithCurrentStatement(accounts);
+    const enriched = await this.enrichWithCurrentStatement(accounts);
+    await this.addContaCorrenteCaixinha(enriched);
+    return enriched;
+  }
+
+  /**
+   * O usuário guarda dinheiro no "cofrinho/caixinha CONTA CORRENTE" do MP e usa
+   * como conta corrente de fato — mas o Pluggy tira esse valor do saldo (a conta
+   * fica 0) e não expõe o caixinha como investimento. Então reconstruímos o
+   * saldo desse caixinha a partir das próprias movimentações internas
+   * ("Dinheiro reservado/retirado ... CONTA CORRENTE") e somamos de volta no
+   * balance da conta de pagamento. Só o caixinha nomeado "conta corrente" entra
+   * (os outros — INVESTIMENTO, etc. — continuam fora, como poupança).
+   */
+  private async addContaCorrenteCaixinha(accounts: AccountWithBankAccounts[]): Promise<void> {
+    const bankBAs = accounts.flatMap((c) => c.bankAccounts.filter((ba) => ba.type === "BANK").map((ba) => ba.id));
+    if (bankBAs.length === 0) return;
+    const rows = await prisma.transaction.groupBy({
+      by: ["bankAccountId"],
+      where: {
+        bankAccountId: { in: bankBAs },
+        categoryId: INTERNAL_MOVEMENT_CATEGORY_ID,
+        description: { contains: "conta corrente", mode: "insensitive" },
+      },
+      _sum: { amount: true },
+    });
+    // saldo do caixinha = -(soma dos amounts): reservado (−) tira da conta, retirado (+) devolve.
+    const adj = new Map(rows.map((r) => [r.bankAccountId, -(r._sum.amount ?? 0)]));
+    for (const c of accounts) {
+      for (const ba of c.bankAccounts) {
+        const a = adj.get(ba.id);
+        if (a) ba.balance = Math.round((ba.balance + a) * 100) / 100;
+      }
+    }
   }
 
   /** Fatura mais recente (Pluggy /bills) de um cartão: a de maior dueDate. */
@@ -200,7 +233,7 @@ export class AccountsService {
           amount: { lt: 0 } as const,
           installmentTotal: null,
           occurredAt: { gte: from, lt: to },
-          categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+          categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
         });
         const [avClosed, avOpen, projClosed, projOpen] = await Promise.all([
           prisma.transaction.aggregate({ where: avistaWhere(new Date(prevClose.getTime() + DAY), new Date(lastClose.getTime() + DAY)), _sum: { amount: true } }),

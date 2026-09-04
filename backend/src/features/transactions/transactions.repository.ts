@@ -1,6 +1,6 @@
 import { prisma } from "../../config/database.js";
 import type { Prisma, Transaction, CategoryRule } from "@prisma/client";
-import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
+import { EXCLUDED_SUMMARY_CATEGORY_IDS } from "../categories/categories.seed.js";
 
 interface PageQuery {
   userId: string;
@@ -28,7 +28,7 @@ export class TransactionsRepository {
     } else {
       // Esconde "Pagamento de fatura" da listagem geral. Só aparece se o user
       // filtrar explicitamente por essa categoria (drill-down).
-      where.categoryId = { not: INTERNAL_TRANSFER_CATEGORY_ID };
+      where.categoryId = { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS };
     }
     // Teto = agora: nunca mostra parcelas projetadas no futuro (só aparecem
     // quando a data chega). Pega o menor entre o fim do período e agora.
@@ -160,7 +160,7 @@ export class TransactionsRepository {
         ? { type: q.accountType, connectedAccount: { userId: q.userId, isInvestment: false } }
         : { connectedAccount: { userId: q.userId, isInvestment: false } },
       // Sempre exclui pagamento de fatura (transferência interna)
-      categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+      categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
     };
     if (q.accountId) where.bankAccountId = q.accountId;
     else if (q.accountIds && q.accountIds.length > 0) where.bankAccountId = { in: q.accountIds };

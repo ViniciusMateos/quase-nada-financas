@@ -11,6 +11,10 @@ model User {
   id                String             @id @default(uuid())
   email             String             @unique
   name             String?
+  // Nome do titular como aparece em transferências (ex.: "Vinicius de Souza
+  // Mateos"). Usado pra detectar PIX/transferência pra si mesmo e tratar como
+  // movimentação interna (não é gasto/receita).
+  selfName         String?
   passwordHash     String
   pushToken        String?
   createdAt        DateTime           @default(now())

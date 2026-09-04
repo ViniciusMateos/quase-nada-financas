@@ -1,5 +1,5 @@
 import { prisma } from "../../config/database.js";
-import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
+import { EXCLUDED_SUMMARY_CATEGORY_IDS } from "../categories/categories.seed.js";
 import { stripInstallmentSuffix } from "../transactions/transactions.service.js";
 
 export interface SubscriptionItem {
@@ -85,7 +85,7 @@ export class AnalyticsService {
         bankAccount: { connectedAccount: { userId } },
         amount: { lt: 0 },
         occurredAt: { gte: since },
-        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+        categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
         // override negativo: exclui completamente do algoritmo
         NOT: { isSubscriptionOverride: false },
       },
@@ -224,7 +224,7 @@ export class AnalyticsService {
         amount: { lt: 0 },
         // teto = agora: não conta parcelas projetadas no futuro
         occurredAt: { gte: start, lt: end, lte: new Date() },
-        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+        categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
       },
       select: {
         amount: true,
@@ -402,7 +402,7 @@ export class AnalyticsService {
       where: {
         bankAccount: { connectedAccount: { userId } },
         occurredAt: { gte: start, lte: end },
-        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+        categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
       },
       select: {
         amount: true,

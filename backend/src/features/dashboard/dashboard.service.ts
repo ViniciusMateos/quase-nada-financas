@@ -1,6 +1,6 @@
 import { prisma } from "../../config/database.js";
 import { redis } from "../../lib/redis.js";
-import { INTERNAL_TRANSFER_CATEGORY_ID } from "../categories/categories.seed.js";
+import { EXCLUDED_SUMMARY_CATEGORY_IDS } from "../categories/categories.seed.js";
 
 const CACHE_TTL = 5 * 60;
 
@@ -49,7 +49,7 @@ export class DashboardService {
         bankAccount: { connectedAccount: { userId, isInvestment: false } },
         // teto = agora: não conta parcelas projetadas no futuro
         occurredAt: { gte: start, lt: end, lte: new Date() },
-        categoryId: { not: INTERNAL_TRANSFER_CATEGORY_ID },
+        categoryId: { notIn: EXCLUDED_SUMMARY_CATEGORY_IDS },
       },
       select: {
         amount: true,
