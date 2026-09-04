@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   GestureResponderEvent,
@@ -19,8 +19,20 @@ import { demoStore } from '@/demo/demoStore';
 import { OTA_VERSION, rodandoDeUpdate } from '@/constants/otaVersion';
 import { normalizeError } from '@/lib/errorMap';
 import { BottomSheet } from '@/ui/BottomSheet';
+import { Button } from '@/ui/Button';
 import { LoadingDog } from '@/ui/LoadingDog';
 import { TabScreen } from '@/ui/TabScreen';
+
+type EstadoOta = 'checando' | 'atualizado' | 'disponivel' | 'baixando' | 'erro';
+
+// expo-updates guardado: em dev client / Expo Go o módulo pode nem existir.
+function getUpdates(): {
+  checkForUpdateAsync?: () => Promise<{ isAvailable: boolean }>;
+  fetchUpdateAsync?: () => Promise<unknown>;
+  reloadAsync?: () => Promise<void>;
+} | null {
+  try { return require('expo-updates'); } catch { return null; }
+}
 
 const AVATAR_COLORS = [
   '#22C55E', '#16A34A', '#0EA5E9',
@@ -55,6 +67,45 @@ export default function SettingsScreen() {
   const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Atualização OTA
+  const [ota, setOta] = useState<EstadoOta>('checando');
+
+  // ao abrir: pergunta ao servidor de OTA se tem versão mais nova que a que está rodando
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const U = getUpdates();
+      if (!U?.checkForUpdateAsync) { if (vivo) setOta('atualizado'); return; }  // dev/expo go
+      try {
+        const r = await U.checkForUpdateAsync();
+        if (vivo) setOta(r.isAvailable ? 'disponivel' : 'atualizado');
+      } catch { if (vivo) setOta('atualizado'); }   // offline/erro → não alarma
+    })();
+    return () => { vivo = false; };
+  }, []);
+
+  async function atualizarAgora() {
+    const U = getUpdates();
+    if (!U?.fetchUpdateAsync || !U?.reloadAsync) return;
+    setOta('baixando');
+    try {
+      await U.fetchUpdateAsync();
+      // segura o overlay "Atualizando…" no ar um instante antes do reload —
+      // dá tempo do fade aparecer e a troca fica suave (sem piscar a tela).
+      await new Promise((r) => setTimeout(r, 550));
+      await U.reloadAsync();   // reinicia já com o bundle novo
+    } catch { setOta('erro'); }
+  }
+
+  // rodapé state-aware: nº do OTA + palavra de estado ('desatualizado'/'erro' em alerta)
+  const estadoOta =
+    ota === 'checando' ? 'verificando…'
+    : ota === 'disponivel' ? 'desatualizado'
+    : ota === 'baixando' ? 'baixando…'
+    : ota === 'erro' ? 'erro ao atualizar'
+    : rodandoDeUpdate() ? 'atualizado' : 'embutido';
+  const estadoOtaCor = ota === 'disponivel' || ota === 'erro' ? colors.brandWarning : colors.brandTextSecondary;
 
   // O reanimated cuida das animações: o picker entra/sai com Fade, e os
   // Animated.View envolvendo cada bloco têm `layout={LinearTransition}` —
@@ -222,11 +273,31 @@ export default function SettingsScreen() {
           )}
         </Animated.View>
 
+        {/* Atualização OTA — card só aparece quando há versão nova esperando (ou baixando). */}
+        {(ota === 'disponivel' || ota === 'baixando') && (
+          <Animated.View style={[styles.otaCard, { ...shadows.card }]} layout={LinearTransition.duration(PICKER_DUR_MS)}>
+            <View style={styles.otaCardHead}>
+              <Ionicons name="cloud-download-outline" size={18} color={colors.brandWarning} />
+              <Text style={styles.otaCardTitle}>Atualização disponível</Text>
+            </View>
+            <Text style={styles.otaCardHint}>
+              Tem uma versão nova do app esperando. Toca pra baixar e reabrir já atualizado
+              (ou reabra o app depois que ela baixa sozinha).
+            </Text>
+            <Button
+              label="Atualizar agora"
+              icon="cloud-download-outline"
+              loading={ota === 'baixando'}
+              onPress={atualizarAgora}
+            />
+          </Animated.View>
+        )}
+
         {/* Rodapé OTA — prova de que o bundle novo baixou (sobe +1 a cada eas update). */}
         <View style={styles.otaFooter}>
           <Ionicons name="cloud-done-outline" size={13} color={colors.brandTextSecondary} />
           <Text style={styles.otaText}>
-            OTA #{OTA_VERSION}  ·  {rodandoDeUpdate() ? 'atualizado' : 'embutido'}
+            OTA #{OTA_VERSION}  ·  <Text style={{ color: estadoOtaCor }}>{estadoOta}</Text>
           </Text>
         </View>
       </ScrollView>
@@ -267,6 +338,23 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         </BottomSheet>
+      )}
+
+      {/* Overlay full-screen do "Atualizar agora": um fade suave "Atualizando…"
+          por cima de tudo enquanto baixa+reinicia, no lugar do pisca-pisca seco
+          do reload. Cor de fundo = a do app (0.96), então o inset do padding do
+          TabScreen é invisível. */}
+      {ota === 'baixando' && (
+        <Animated.View
+          style={styles.otaOverlay}
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(180)}
+          pointerEvents="auto"
+        >
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.brandBackground, opacity: 0.96 }]} />
+          <LoadingDog size={64} color={colors.brandPrimary} />
+          <Text style={styles.otaOverlayText}>Atualizando…</Text>
+        </Animated.View>
       )}
     </TabScreen>
   );
@@ -359,8 +447,14 @@ function makeStyles(c: any) {
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.brandDivider, marginLeft: 50 },
     logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 28, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: c.brandError, backgroundColor: 'rgba(239, 68, 68, 0.08)' },
     logoutText: { color: c.brandError, fontSize: 16, fontWeight: '700' },
+    otaCard: { backgroundColor: c.brandSurface, borderRadius: 16, padding: 16, marginTop: 22, gap: 12, borderWidth: 1, borderColor: c.brandWarning },
+    otaCardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    otaCardTitle: { fontSize: 15, fontWeight: '800', color: c.brandTextPrimary },
+    otaCardHint: { fontSize: 13, lineHeight: 19, color: c.brandTextSecondary },
     otaFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 22 },
     otaText: { color: c.brandTextSecondary, fontSize: 12, fontWeight: '600' },
+    otaOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 16, zIndex: 100, elevation: 100 },
+    otaOverlayText: { fontSize: 16, fontWeight: '700', color: c.brandTextPrimary },
     sheetTitle: { fontSize: 20, fontWeight: '800', color: c.brandTextPrimary, marginBottom: 10 },
     sheetWarning: { fontSize: 14, lineHeight: 20, color: c.brandTextSecondary, marginBottom: 18 },
     formError: { color: c.brandTextError, fontWeight: '700', marginBottom: 12 },
