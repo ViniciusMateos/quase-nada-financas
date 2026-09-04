@@ -8,7 +8,7 @@
 // Não confundir com:
 //   - `version` (1.0.x) no app.config → versão de marketing
 //   - `runtimeVersion` (1.0.0) fixo → compatibilidade OTA×nativo (só muda em build)
-export const OTA_VERSION = 9;
+export const OTA_VERSION = 19;
 
 // Detecta se o bundle rodando veio de um `eas update` (OTA) ou do JS embutido no
 // build. Em dev client o módulo pode se comportar diferente — cai no fallback.
