@@ -64,10 +64,13 @@ module.exports = {
     userInterfaceStyle: 'light',
     icon: current.icon,
     assetBundlePatterns: ['assets/**/*'],
+    // splash CLARA (#F5F7FA + ícone) = casa com o fundo do overlay "Atualizando…" do OTA
+    // (colors.brandBackground do tema claro, o default). Assim o reload nativo (reloadAsync)
+    // fica claro→claro, sem o flash verde do splash antigo. Config NATIVA: só vale no próximo build.
     splash: {
-      image: current.icon,
+      image: './assets/splash_claro.png',
       resizeMode: 'contain',
-      backgroundColor: '#22C55E'
+      backgroundColor: '#F5F7FA'
     },
     ios: {
       bundleIdentifier: current.bundleIdentifier,
