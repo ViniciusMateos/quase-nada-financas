@@ -5,6 +5,16 @@ O formato segue Keep a Changelog e o versionamento segue Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-04
+
+### Adicionado
+- feat: movimentacao interna — auto-transferencia (PIX pra si mesmo, via campo selfName) e cofrinho/caixinha do Mercado Pago tratados como dinheiro que so muda de lugar, fora dos resumos (dashboard/analytics)
+- feat: secoes colapsaveis na Distribuicao (assinaturas / parcelamentos / meus itens) com total e contagem, estado persistido
+- feat: Settings avisa OTA desatualizada + botao "Atualizar agora" (com transicao suave antes do reload)
+
+### Modificado
+- update: splash clara no reload casa com o overlay "Atualizando" — sem o flash verde ao aplicar OTA (nativo, vale no build)
+
 ## [1.2.1] - 2026-05-31
 
 ### Changed
