@@ -4,6 +4,12 @@
 ![Backend](https://img.shields.io/badge/backend-Fastify%20%2B%20Prisma-111827)
 ![Mobile](https://img.shields.io/badge/mobile-Expo%20React%20Native-22C55E)
 ![License](https://img.shields.io/badge/license-private-lightgrey)
+![Status](https://img.shields.io/badge/status-arquivado%20%C2%B7%20material%20de%20estudo-lightgrey)
+
+> **Status: arquivado — material de estudo (set/2026).** Projetinho de financas
+> pessoais que a gente foi tocando por um tempo e deu pra aprender bastante no
+> caminho (full-stack de verdade). Acabou nao fazendo mais sentido manter de pe, entao
+> o backend foi desligado e o codigo fica aqui so como referencia/estudo. Ja era.
 
 App de financas pessoais com contas via Open Finance/Pluggy, transacoes categorizadas, dashboard mensal e investimentos Binance. Backend Node.js/Fastify e app mobile React Native + Expo para build iOS via EAS no Windows.
 
