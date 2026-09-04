@@ -172,6 +172,9 @@ export default function DistribuicaoScreen() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
+  // Seções colapsadas (Assinaturas / Parcelamentos / Meus itens) — persistido.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggleSection = (key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] }));
   const [loaded, setLoaded] = useState(false);
 
   // Picker
@@ -225,10 +228,11 @@ export default function DistribuicaoScreen() {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as { dists?: Distribution[]; selectedId?: string };
+          const parsed = JSON.parse(raw) as { dists?: Distribution[]; selectedId?: string; collapsed?: Record<string, boolean> };
           if (Array.isArray(parsed.dists)) {
             setDists(parsed.dists);
             setSelectedId(parsed.selectedId ?? parsed.dists[0]?.id ?? null);
+            if (parsed.collapsed) setCollapsed(parsed.collapsed);
             setLoaded(true);
             return;
           }
@@ -263,8 +267,8 @@ export default function DistribuicaoScreen() {
 
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ dists, selectedId })).catch(() => undefined);
-  }, [dists, selectedId, loaded]);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ dists, selectedId, collapsed })).catch(() => undefined);
+  }, [dists, selectedId, collapsed, loaded]);
 
   // Distribuições visíveis no mês: recorrentes sempre; não-recorrentes só no mês criado.
   const visible = useMemo(
@@ -701,21 +705,21 @@ export default function DistribuicaoScreen() {
 
             {/* Assinaturas (auto) */}
             {isSalary && assinaturaRows.length > 0 ? (
-              <SectionHeaderRow icon="repeat" title="Assinaturas" sum={assinaturaRows.reduce((s, r) => s + r.amount, 0)} colors={colors} styles={styles} />
+              <SectionHeaderRow icon="repeat" title="Assinaturas" count={assinaturaRows.length} sum={assinaturaRows.reduce((s, r) => s + r.amount, 0)} collapsed={!!collapsed.assinatura} onToggle={() => toggleSection('assinatura')} colors={colors} styles={styles} />
             ) : null}
-            {assinaturaRows.map(renderRow)}
+            {!collapsed.assinatura && assinaturaRows.map(renderRow)}
 
             {/* Parcelamentos (auto, só os que caem no mês) */}
             {isSalary && parcelaRows.length > 0 ? (
-              <SectionHeaderRow icon="card-outline" title="Parcelamentos" sum={parcelaRows.reduce((s, r) => s + r.amount, 0)} colors={colors} styles={styles} />
+              <SectionHeaderRow icon="card-outline" title="Parcelamentos" count={parcelaRows.length} sum={parcelaRows.reduce((s, r) => s + r.amount, 0)} collapsed={!!collapsed.parcelamento} onToggle={() => toggleSection('parcelamento')} colors={colors} styles={styles} />
             ) : null}
-            {parcelaRows.map(renderRow)}
+            {!collapsed.parcelamento && parcelaRows.map(renderRow)}
 
             {/* Meus itens (manuais) — só ganha cabeçalho quando há auto acima */}
             {isSalary && autoRows.length > 0 ? (
-              <SectionHeaderRow icon="pricetags-outline" title="Meus itens" sum={manualRows.reduce((s, r) => s + r.amount, 0)} colors={colors} styles={styles} />
+              <SectionHeaderRow icon="pricetags-outline" title="Meus itens" count={manualRows.length} sum={manualRows.reduce((s, r) => s + r.amount, 0)} collapsed={!!collapsed.meus} onToggle={() => toggleSection('meus')} colors={colors} styles={styles} />
             ) : null}
-            {manualRows.map(renderRow)}
+            {!(isSalary && autoRows.length > 0 && collapsed.meus) && manualRows.map(renderRow)}
 
             <Pressable onPress={addItem} style={styles.addBtn}>
               <Ionicons name="add-circle-outline" size={20} color={colors.brandPrimaryDark} />
@@ -875,15 +879,17 @@ function ModeBtn({ label, active, onPress, colors, styles }: { label: string; ac
   );
 }
 
-function SectionHeaderRow({ icon, title, sum, colors, styles }: { icon: any; title: string; sum: number; colors: any; styles: any }) {
+function SectionHeaderRow({ icon, title, sum, count, collapsed, onToggle, colors, styles }: { icon: any; title: string; sum: number; count?: number; collapsed?: boolean; onToggle?: () => void; colors: any; styles: any }) {
   return (
-    <View style={styles.sectionHeaderRow}>
+    <Pressable onPress={onToggle} hitSlop={6} style={({ pressed }) => [styles.sectionHeaderRow, pressed && { opacity: 0.6 }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={15} color={colors.brandTextSecondary} />
         <Ionicons name={icon} size={14} color={colors.brandTextSecondary} />
         <Text style={styles.sectionHeaderTitle}>{title}</Text>
+        {collapsed && count != null ? <Text style={styles.sectionHeaderCount}>· {count}</Text> : null}
       </View>
       <Text style={styles.sectionHeaderSum}>{formatCurrency(sum)}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -925,6 +931,7 @@ function makeStyles(c: any) {
     sectionChipText: { fontSize: 13, fontWeight: '800', color: c.brandTextSecondary },
     sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8, paddingHorizontal: 2 },
     sectionHeaderTitle: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, color: c.brandTextSecondary },
+    sectionHeaderCount: { fontSize: 12, fontWeight: '700', color: c.brandTextSecondary },
     sectionHeaderSum: { fontSize: 13, fontWeight: '800', color: c.brandTextPrimary },
     restoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 12 },
     restoreText: { fontSize: 13, fontWeight: '700', color: c.brandTextSecondary },
